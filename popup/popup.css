@@ -1,10 +1,4 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600&display=swap" rel="stylesheet">
-  <style>
-    :root {
+:root {
       --fill-color-acrylic-background-default: rgba(243, 243, 243, 0.8);
       --fill-color-control-default: #FFFFFF;
       --fill-color-accent-default: #0078D4;
@@ -142,26 +136,25 @@
       color: #1E88E5 !important;
       font-weight: 600;
     }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>Copy Tabs</h1>
-    <input type="text" id="filter-input" placeholder="Filter URLs...">
-    <div class="select-all-container">
-        <input type="checkbox" id="select-all-checkbox" checked>
-        <label for="select-all-checkbox">Select All</label>
-    </div>
-    <div id="url-list-container"></div>
-    <button id="copyButton">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M11.5 1.5H2.5C1.94772 1.5 1.5 1.94772 1.5 2.5V11.5C1.5 12.0523 1.94772 12.5 2.5 12.5H11.5C12.0523 12.5 12.5 12.0523 12.5 11.5V2.5C12.5 1.94772 12.0523 1.5 11.5 1.5Z" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M14.5 4.5V13.5C14.5 14.0523 14.0523 14.5 13.5 14.5H4.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span>Copy Selected URLs</span>
-    </button>
-    <div id="status"></div>
-  </div>
-  <script src="popup.js"></script>
-</body>
-</html>
+
+    /* Added styles */
+.top-row { display:flex; justify-content: space-between; align-items: center; gap:8px; }
+.sort-group select, #export-format { padding:4px 8px; border:1px solid var(--stroke-color-control-stroke-default); background:var(--fill-color-control-default); border-radius:6px; font-size:12px; }
+.filter-row { display:flex; gap:6px; }
+.filter-row #filter-input { flex:1; }
+#clear-filter { border:none; background:var(--fill-color-control-default); border:1px solid var(--stroke-color-control-stroke-default); padding:0 8px; border-radius:6px; cursor:pointer; font-size:12px; }
+#clear-filter:hover { background:rgba(0,0,0,0.05); }
+.actions-row { display:flex; gap:8px; }
+.actions-row button, #saveButton { flex:0 0 auto; }
+.toggles-inline { display:flex; gap:8px; font-size:11px; align-items:center; }
+.toggles-inline label { display:flex; gap:4px; align-items:center; cursor:pointer; }
+.counts { font-size:12px; font-weight:500; margin-left:4px; color:var(--text-secondary); }
+.url-item.duplicate { opacity:0.5; }
+.url-item .favicon { width:16px; height:16px; flex:0 0 16px; border-radius:4px; background:rgba(0,0,0,0.08); object-fit:contain; }
+.url-item .favicon.hidden { display:none; }
+.url-item .domain-badge { font-size:10px; padding:2px 4px; background:rgba(0,0,0,0.05); border-radius:4px; color:var(--text-secondary); }
+
+@media (prefers-color-scheme: dark) {
+  #clear-filter:hover { background:rgba(255,255,255,0.1); }
+  .url-item .domain-badge { background:rgba(255,255,255,0.1); }
+}

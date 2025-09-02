@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Copy Tabs <span class="counts" id="counts"><span id="count-selected">0</span>/<span id="count-total">0</span></span></h1>
+    <div class="top-row">
+      <div class="sort-group">
+        <label for="sort-select" class="sr-only">Sort</label>
+        <select id="sort-select" title="Sort tabs">
+          <option value="index">Tab order</option>
+          <option value="domain">Domain (A→Z)</option>
+          <option value="title">Title (A→Z)</option>
+        </select>
+      </div>
+      <div class="toggles-inline">
+        <label title="Hide duplicate URLs"><input type="checkbox" id="hide-duplicates"> Dup</label>
+        <label title="Skip system/internal tabs"><input type="checkbox" id="skip-system" checked> Sys-</label>
+      </div>
+    </div>
+    <div class="filter-row">
+      <input type="text" id="filter-input" placeholder="Filter URLs..." autocomplete="off">
+      <button id="clear-filter" title="Clear filter">✕</button>
+    </div>
+    <div class="select-all-container">
+        <input type="checkbox" id="select-all-checkbox" checked>
+        <label for="select-all-checkbox">Select All</label>
+    </div>
+    <div id="url-list-container"></div>
+    <div class="actions-row">
+      <select id="export-format">
+        <option value="txt" selected>Plain .txt</option>
+        <option value="csv">CSV (.csv)</option>
+        <option value="md">Markdown List</option>
+      </select>
+      <button id="saveButton" title="Save selected URLs to file">Save</button>
+    </div>
+    <button id="copyButton">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11.5 1.5H2.5C1.94772 1.5 1.5 1.94772 1.5 2.5V11.5C1.5 12.0523 1.94772 12.5 2.5 12.5H11.5C12.0523 12.5 12.5 12.0523 12.5 11.5V2.5C12.5 1.94772 12.0523 1.5 11.5 1.5Z" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M14.5 4.5V13.5C14.5 14.0523 14.0523 14.5 13.5 14.5H4.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Copy Selected URLs</span>
+    </button>
+    <div id="status"></div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

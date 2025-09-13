@@ -1,0 +1,66 @@
+/* Spacing System
+ * Implements a consistent spacing system based on Fluent 2 + Apple HIG
+ * - Clarity & Deference principles: Use whitespace effectively
+ * - Consistent rhythm across UI components
+ * - Enables clean content-focused layouts
+ */
+
+:root {
+  /* Base spacing unit */
+  --spacingBase: 4px;
+  
+  /* Named spacing tokens - multiples of base unit */
+  --spacingXXS: calc(var(--spacingBase) * 1);  /* 4px */
+  --spacingXS: calc(var(--spacingBase) * 2);   /* 8px */
+  --spacingS: calc(var(--spacingBase) * 3);    /* 12px */
+  --spacingM: calc(var(--spacingBase) * 4);    /* 16px */
+  --spacingL: calc(var(--spacingBase) * 6);    /* 24px */
+  --spacingXL: calc(var(--spacingBase) * 8);   /* 32px */
+  --spacingXXL: calc(var(--spacingBase) * 12); /* 48px */
+  
+  /* Directional spacing - for convenience and consistent naming */
+  --spacingHorizontalXXS: var(--spacingXXS);
+  --spacingHorizontalXS: var(--spacingXS); 
+  --spacingHorizontalS: var(--spacingS);
+  --spacingHorizontalM: var(--spacingM);
+  --spacingHorizontalL: var(--spacingL);
+  --spacingHorizontalXL: var(--spacingXL);
+  --spacingHorizontalXXL: var(--spacingXXL);
+  
+  --spacingVerticalXXS: var(--spacingXXS);
+  --spacingVerticalXS: var(--spacingXS);
+  --spacingVerticalS: var(--spacingS);
+  --spacingVerticalM: var(--spacingM);
+  --spacingVerticalL: var(--spacingL);
+  --spacingVerticalXL: var(--spacingXL);
+  --spacingVerticalXXL: var(--spacingXXL);
+  
+  /* Component-specific spacing */
+  --spacingInlineComponent: var(--spacingXS);  /* Spacing between inline elements */
+  --spacingStackComponent: var(--spacingS);    /* Vertical spacing between stacked elements */
+  --spacingContentPadding: var(--spacingM);    /* Standard content padding */
+  --spacingGroupedElements: var(--spacingXS);  /* Spacing between related elements */
+}
+
+/* Common spacing utility classes */
+.margin-top-xxs { margin-top: var(--spacingVerticalXXS); }
+.margin-top-xs { margin-top: var(--spacingVerticalXS); }
+.margin-top-s { margin-top: var(--spacingVerticalS); }
+.margin-top-m { margin-top: var(--spacingVerticalM); }
+.margin-top-l { margin-top: var(--spacingVerticalL); }
+
+.margin-bottom-xxs { margin-bottom: var(--spacingVerticalXXS); }
+.margin-bottom-xs { margin-bottom: var(--spacingVerticalXS); }
+.margin-bottom-s { margin-bottom: var(--spacingVerticalS); }
+.margin-bottom-m { margin-bottom: var(--spacingVerticalM); }
+.margin-bottom-l { margin-bottom: var(--spacingVerticalL); }
+
+.padding-container {
+  padding: var(--spacingContentPadding);
+}
+
+.gap-xxs { gap: var(--spacingXXS); }
+.gap-xs { gap: var(--spacingXS); }
+.gap-s { gap: var(--spacingS); }
+.gap-m { gap: var(--spacingM); }
+.gap-l { gap: var(--spacingL); }

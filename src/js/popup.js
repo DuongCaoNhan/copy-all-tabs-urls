@@ -12,6 +12,12 @@ document.addEventListener('DOMContentLoaded', async function() {
   const clearFilterButton = document.getElementById('clear-filter');
   const countSelectedSpan = document.getElementById('count-selected');
   const countTotalSpan = document.getElementById('count-total');
+  const clearDuplicateBtn = document.getElementById('clear-duplicate-btn');
+  const duplicateConfirm = document.getElementById('duplicate-confirm');
+  const duplicateListDiv = document.getElementById('duplicate-list');
+  const confirmCloseDuplicatesBtn = document.getElementById('confirm-close-duplicates');
+  const cancelCloseDuplicatesBtn = document.getElementById('cancel-close-duplicates');
+  const themeToggleBtn = document.getElementById('theme-toggle-btn');
 
   filterInput.focus();
 
@@ -25,7 +31,8 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   const getFilteredBaseSet = () => {
     let base = [...allTabs];
-    if (skipSystemCheckbox.checked) base = base.filter(t => !isSystemUrl(t.url));
+    // Invert logic: checked = show system tabs, unchecked = hide system tabs
+    if (!skipSystemCheckbox.checked) base = base.filter(t => !isSystemUrl(t.url));
     return base;
   };
 
@@ -218,6 +225,60 @@ document.addEventListener('DOMContentLoaded', async function() {
       console.error('Save failed', err);
       statusDiv.textContent = '❌ Failed to save file';
       setTimeout(() => { statusDiv.textContent = ''; }, 3000);
+    }
+  });
+
+  // Tìm các tab duplicate (không phải tab đầu tiên của mỗi URL)
+  function getDuplicateTabs() {
+    const urlToFirstTabId = {};
+    const dups = [];
+    for (const tab of allTabs) {
+      if (!urlToFirstTabId[tab.url]) {
+        urlToFirstTabId[tab.url] = tab.id;
+      } else {
+        dups.push(tab);
+      }
+    }
+    return dups;
+  }
+
+  // Clear duplicate tabs button functionality
+  clearDuplicateBtn.addEventListener('click', () => {
+    const dups = getDuplicateTabs();
+    if (dups.length === 0) {
+      statusDiv.textContent = '✅ No duplicate tabs.';
+      statusDiv.classList.add('success');
+      setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 2000);
+      return;
+    }
+    // Hiển thị danh sách tab duplicate
+    duplicateListDiv.innerHTML = '<b>Duplicate tabs to close:</b><ul>' + dups.map(t => `<li>${t.title ? t.title.replace(/</g,'&lt;') : t.url} <span style='color:#888;font-size:11px;'>(${t.url})</span></li>`).join('') + '</ul>';
+    duplicateConfirm.classList.remove('hidden');
+  });
+
+  cancelCloseDuplicatesBtn.addEventListener('click', () => {
+    duplicateConfirm.classList.add('hidden');
+  });
+
+  confirmCloseDuplicatesBtn.addEventListener('click', async () => {
+    const dups = getDuplicateTabs();
+    if (dups.length === 0) {
+      duplicateConfirm.classList.add('hidden');
+      return;
+    }
+    try {
+      await chrome.tabs.remove(dups.map(t => t.id));
+      statusDiv.textContent = `🗑️ Closed ${dups.length} duplicate tabs.`;
+      statusDiv.classList.add('success');
+      setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 2000);
+      duplicateConfirm.classList.add('hidden');
+      // Reload tab list
+      allTabs = await chrome.tabs.query({ currentWindow: true });
+      applyFilterSortAndRender();
+    } catch (e) {
+      statusDiv.textContent = '❌ Failed to close tabs.';
+      setTimeout(() => { statusDiv.textContent = ''; }, 2000);
+      duplicateConfirm.classList.add('hidden');
     }
   });
 

@@ -1,0 +1,84 @@
+/**
+ * Theme Menu Styles for Chrome Extension
+ * 
+ * IMPORTANT: 
+ * - CSS variables come from theme.js
+ * - These styles must work with all themes
+ * - Avoid hardcoded colors that might conflict with themes
+ */
+
+/* Theme menu container */
+.theme-menu {
+  margin-top: 4px;
+  min-width: 150px;
+  background-color: var(--colorNeutralBackground1);
+  border: 1px solid var(--colorNeutralStroke1);
+  border-radius: var(--borderRadiusMedium);
+  box-shadow: var(--shadow8);
+  z-index: 1000;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  padding: 4px 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* When menu is shown */
+.theme-menu[style*="display: block"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Theme option items */
+.theme-option {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--borderRadiusSmall, 2px);
+  transition: background-color 0.1s;
+  color: var(--colorNeutralForeground1);
+  margin: 2px 4px;
+  font-size: 14px;
+}
+
+/* Ensure proper contrast for theme options in dark mode */
+[data-theme="dark"] .theme-option {
+  color: var(--colorNeutralForeground1, #ffffff);
+}
+
+/* Hover effect */
+.theme-option:hover {
+  background-color: var(--colorNeutralBackground2);
+}
+
+/* Active/selected theme */
+.theme-option.active {
+  background-color: var(--colorNeutralBackground3);
+  font-weight: var(--fontWeightSemibold);
+}
+
+/* Theme emoji icon */
+.theme-option span:first-child {
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+}
+
+/* Animation for menu appearance */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

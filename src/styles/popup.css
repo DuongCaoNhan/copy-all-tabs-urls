@@ -621,9 +621,6 @@ body {
   margin-right: var(--spacingHorizontalS, 8px); /* Consistent spacing */
 }
 
-/* This duplicate select-all-container has been removed since it's already defined above.
-   The common checkbox styles apply to all checkboxes including select-all-container */
-
 .select-all-container input[type="checkbox"]:checked::before {
   content: '';
   position: absolute;

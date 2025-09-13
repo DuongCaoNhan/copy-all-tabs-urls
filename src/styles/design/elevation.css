@@ -1,0 +1,79 @@
+/* Elevation & Depth System
+ * Implements consistent shadow and elevation effects based on Fluent 2 + Apple HIG
+ * - Depth & Hierarchy principles: Creates sense of space
+ * - Consistent shadow direction and intensity
+ * - Carefully applied to maintain clarity and deference
+ */
+
+:root {
+  /* Shadow direction - consistent light source */
+  --shadowDirection: 0 4px 8px;
+  
+  /* Shadow palette */
+  --shadowColor1: rgba(0, 0, 0, 0.08);
+  --shadowColor2: rgba(0, 0, 0, 0.12);
+  --shadowColor3: rgba(0, 0, 0, 0.14);
+  --shadowColor4: rgba(0, 0, 0, 0.18);
+  
+  /* Shadow levels */
+  --shadow2: 0 2px 4px var(--shadowColor1);
+  --shadow4: 0 4px 8px var(--shadowColor2);
+  --shadow8: 0 8px 16px var(--shadowColor3);
+  --shadow16: 0 16px 32px var(--shadowColor4);
+  --shadow24: 0 24px 38px var(--shadowColor4), 0 9px 12px var(--shadowColor3);
+  
+  /* Shadow light/dark theme variants */
+  --shadowColorDark1: rgba(0, 0, 0, 0.20);
+  --shadowColorDark2: rgba(0, 0, 0, 0.24);
+  
+  /* Elevation tokens - for semantic usage */
+  --elevationPopup: var(--shadow8);
+  --elevationDialog: var(--shadow16);
+  --elevationTooltip: var(--shadow4);
+  --elevationCard: var(--shadow4);
+  --elevationFloating: var(--shadow16);
+  
+  /* Backdrop blur values */
+  --backdropBlurNone: none;
+  --backdropBlurSlight: blur(2px);
+  --backdropBlurMedium: blur(8px);
+  --backdropBlurHeavy: blur(16px);
+}
+
+/* Dark theme shadow adjustments */
+[data-theme="dark"] {
+  --shadow8: 0 8px 16px var(--shadowColorDark1);
+  --shadow16: 0 16px 32px var(--shadowColorDark2);
+  --elevationPopup: var(--shadow8);
+  --elevationDialog: var(--shadow16);
+}
+
+/* Elevation utility classes */
+.elevation-0 {
+  box-shadow: none;
+}
+
+.elevation-1 {
+  box-shadow: var(--shadow2);
+}
+
+.elevation-2 {
+  box-shadow: var(--shadow4);
+}
+
+.elevation-3 {
+  box-shadow: var(--shadow8);
+}
+
+.elevation-4 {
+  box-shadow: var(--shadow16);
+}
+
+.elevation-5 {
+  box-shadow: var(--shadow24);
+}
+
+/* Special elevation states */
+.elevation-floating {
+  box-shadow: var(--elevationFloating);
+}

@@ -1,13 +1,16 @@
-# Copy All Tabs URLs - Chrome Extension
+# URLCollector - Chrome Extension
 
-A simple and efficient Chrome extension that allows you to copy all tab URLs from the current window to your clipboard with just one click.
+A powerful Chrome extension that helps you collect, filter, sort, and copy URLs from all browser tabs in the current window.
 
 ## Features
 
-- One-click copying: Copy all tab URLs from the current window instantly
-- Clean interface: Simple popup with a single button
-- Real-time feedback: Shows confirmation message with the number of copied URLs
-- Clipboard integration: Uses modern Clipboard API for reliable copying
+- Advanced filtering: Filter tabs by title or URL
+- Flexible sorting: Sort by tab order, domain, or title
+- Selective copying: Choose which URLs to include
+- Multiple export formats: Save as TXT, CSV, or Markdown
+- Duplicate management: Identify and close duplicate tabs
+- Dark mode support: Comfortable viewing in any lighting condition
+- Accessibility focused: High contrast and clear typography
 - Error handling: Graceful error handling with user feedback
 
 ## What it does

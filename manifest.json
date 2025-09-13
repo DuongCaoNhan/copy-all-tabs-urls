@@ -1,13 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "Copy All Tabs URLs",
+  "name": "URLCollector",
   "version": "1.0",
-  "description": "Copy all tab URLs in the current window to clipboard",
+  "description": "Collect, filter, sort and copy URLs from all browser tabs",
   "permissions": [
-    "tabs"
+    "tabs",
+    "storage"
   ],
   "action": {
-    "default_popup": "popup/popup.html",
-    "default_title": "Copy All Tabs URLs"
+    "default_popup": "src/popup/popup.html",
+    "default_title": "URLCollector"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
   }
 }

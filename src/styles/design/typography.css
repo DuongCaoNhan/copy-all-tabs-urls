@@ -1,0 +1,84 @@
+/* Typography System
+ * Implements a consistent typography system based on Fluent 2 + Apple HIG
+ * - Clarity principle: Legibility is highest priority
+ * - Uses Segoe UI as primary font
+ * - Clear hierarchy with different font sizes/weights
+ * - High contrast for readability
+ */
+
+:root {
+  /* Font tokens */
+  --fontFamilyBase: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --fontWeightRegular: 400;
+  --fontWeightMedium: 500;
+  --fontWeightSemibold: 600;
+  --fontWeightBold: 700;
+  
+  /* Type scale - geometric progression for clarity and rhythm */
+  --fontSizeBase100: 10px;
+  --fontSizeBase200: 12px;
+  --fontSizeBase300: 14px;
+  --fontSizeBase400: 16px;
+  --fontSizeBase500: 20px;
+  --fontSizeBase600: 24px;
+  --fontSizeBase700: 28px;
+  --fontSizeBase800: 32px;
+  
+  /* Line heights for better readability */
+  --lineHeightBase100: 14px;
+  --lineHeightBase200: 16px;
+  --lineHeightBase300: 20px;
+  --lineHeightBase400: 22px;
+  --lineHeightBase500: 26px;
+  --lineHeightBase600: 32px;
+  --lineHeightBase700: 36px;
+  --lineHeightBase800: 42px;
+  
+  /* Letter spacing */
+  --letterSpacingNormal: 0;
+  --letterSpacingWide: 0.05em;
+  --letterSpacingTight: -0.01em;
+}
+
+/* Typography system - semantic component styles */
+.typography-header1 {
+  font-family: var(--fontFamilyBase);
+  font-size: var(--fontSizeBase600);
+  font-weight: var(--fontWeightSemibold);
+  line-height: var(--lineHeightBase600);
+  margin-bottom: var(--spacingVerticalS);
+  color: var(--colorNeutralForeground1);
+}
+
+.typography-header2 {
+  font-family: var(--fontFamilyBase);
+  font-size: var(--fontSizeBase500);
+  font-weight: var(--fontWeightSemibold);
+  line-height: var(--lineHeightBase500);
+  margin-bottom: var(--spacingVerticalXS);
+  color: var(--colorNeutralForeground1);
+}
+
+.typography-body {
+  font-family: var(--fontFamilyBase);
+  font-size: var(--fontSizeBase300);
+  font-weight: var(--fontWeightRegular);
+  line-height: var(--lineHeightBase300);
+  color: var(--colorNeutralForeground2);
+}
+
+.typography-caption {
+  font-family: var(--fontFamilyBase);
+  font-size: var(--fontSizeBase200);
+  font-weight: var(--fontWeightRegular);
+  line-height: var(--lineHeightBase200);
+  color: var(--colorNeutralForeground2);
+}
+
+.typography-label {
+  font-family: var(--fontFamilyBase);
+  font-size: var(--fontSizeBase300);
+  font-weight: var(--fontWeightMedium);
+  line-height: var(--lineHeightBase300);
+  color: var(--colorNeutralForeground1);
+}

@@ -150,44 +150,8 @@ document.addEventListener('DOMContentLoaded', async function() {
   } catch (e) { /* ignore */ }
 
   // --- Tab Management functions ---
-
-  async function saveTabState() {
-    const tabs = await chrome.tabs.query({ currentWindow: true });
-    const state = tabs.map(t => ({ id: t.id, index: t.index, groupId: t.groupId }));
-    await chrome.storage.local.set({ tabManagerState: state });
-    restoreTabsBtn.disabled = false;
-  }
-
-  async function restoreTabState() {
-    const result = await chrome.storage.local.get('tabManagerState');
-    const state = result.tabManagerState;
-    if (!state) return;
-
-    const sorted = [...state].sort((a, b) => a.index - b.index);
-
-    for (const entry of sorted) {
-      try { await chrome.tabs.move(entry.id, { index: entry.index }); }
-      catch (e) { console.warn(`Could not move tab ${entry.id}:`, e); }
-    }
-
-    for (const entry of sorted) {
-      try {
-        if (entry.groupId >= 0) {
-          await chrome.tabs.group({ tabIds: [entry.id], groupId: entry.groupId });
-        } else {
-          await chrome.tabs.ungroup([entry.id]);
-        }
-      } catch (e) { console.warn(`Could not restore group for tab ${entry.id}:`, e); }
-    }
-
-    await chrome.storage.local.remove('tabManagerState');
-    restoreTabsBtn.disabled = true;
-    allTabs = await chrome.tabs.query({ currentWindow: true });
-    applyFilterSortAndRender();
-    statusDiv.textContent = '↩️ Tabs restored.';
-    statusDiv.classList.add('success');
-    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
-  }
+  // Duplicate local declarations removed; keep the later Tab Management block
+  // in this DOMContentLoaded handler as the single source of truth.
 
   async function sortTabsByDomain() {
     await saveTabState();

@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Apply initial theme
   applyTheme(isDarkMode ? darkTheme : lightTheme);
   document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
-  themeToggleBtn.textContent = isDarkMode ? '☀️' : '🌙';
+  themeToggleBtn.innerHTML = isDarkMode ? '<span class="material-icons">dark_mode</span>' : '<span class="material-icons">light_mode</span>';
   
   // Simple toggle functionality
   themeToggleBtn.addEventListener('click', (e) => {
@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Apply the theme
     applyTheme(isDarkMode ? darkTheme : lightTheme);
     document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
-    themeToggleBtn.textContent = isDarkMode ? '☀️' : '🌙';
+    themeToggleBtn.innerHTML = isDarkMode ? '<span class="material-icons">dark_mode</span>' : '<span class="material-icons">light_mode</span>';
     
     // Save to localStorage
     try {

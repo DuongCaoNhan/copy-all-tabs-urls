@@ -2,81 +2,121 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;500;600&display=swap" rel="stylesheet">
-  <!-- Design system component stylesheets -->
-  <link rel="stylesheet" href="../styles/design/typography.css">
-  <link rel="stylesheet" href="../styles/design/spacing.css">
-  <link rel="stylesheet" href="../styles/design/elevation.css">
-  <!-- Application stylesheets -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <link rel="stylesheet" href="../styles/popup.css">
-  <link rel="stylesheet" href="../styles/components/theme-styles.css">
-  <!-- Direct theme toggle for maximum reliability -->
   <script src="../js/theme/direct-theme-toggle.js"></script>
-  <!-- More advanced theme system (may be used in the future) -->
   <script type="module" src="../js/theme/theme-init.js"></script>
 </head>
 <body>
-  <div class="container elevation-3 padding-container">
-    <h1 class="typography-header1">URLCollector <span class="counts typography-caption" id="counts"><span id="count-selected">0</span>/<span id="count-total">0</span></span></h1>
-    <div class="top-row gap-s margin-bottom-xs">
-      <div class="sort-group">
-        <label for="sort-select" class="sr-only">Sort</label>
-        <select id="sort-select" title="Sort tabs" class="typography-caption">
+  <div class="uc-container">
+
+    <!-- ── Header ────────────────────────────────────── -->
+    <header class="uc-header">
+      <div class="uc-header-left">
+        <span class="uc-logo">URLCollector</span>
+        <span class="uc-count" id="counts">
+          <span id="count-selected">0</span>/<span id="count-total">0</span>
+        </span>
+      </div>
+      <div class="uc-header-right">
+        <select id="sort-select" title="Preview order in list" class="uc-select uc-select-sm">
           <option value="index">Tab order</option>
-          <option value="domain">Domain (A→Z)</option>
-          <option value="title">Title (A→Z)</option>
+          <option value="domain">Domain A→Z</option>
+          <option value="title">Title A→Z</option>
+          <option value="last-accessed">Last Accessed</option>
+          <option value="tab-count">Tab Count/Domain</option>
         </select>
+        <label class="uc-toggle-label" title="Hide duplicate URLs">
+          <input type="checkbox" id="hide-duplicates"> Dup
+        </label>
+        <label class="uc-toggle-label" title="Skip system/internal tabs">
+          <input type="checkbox" id="skip-system" checked> Sys-
+        </label>
+        <button id="theme-toggle-btn" class="uc-icon-btn" title="Switch theme"><span class="material-icons">dark_mode</span></button>
       </div>
-      <div class="theme-toggle">
-        <button id="theme-toggle-btn" title="Switch theme" class="elevation-1">🌓</button>
-      </div>
-      <div class="toggles-inline typography-caption gap-s">
-        <label title="Hide duplicate URLs"><input type="checkbox" id="hide-duplicates"> Dup</label>
-        <label title="Skip system/internal tabs"><input type="checkbox" id="skip-system" checked> Sys-</label>
-      </div>
+    </header>
+
+    <!-- ── Filter ─────────────────────────────────────── -->
+    <div class="uc-filter-row">
+      <input type="text" id="filter-input" placeholder="Filter by title or URL…" autocomplete="off" class="uc-input">
+      <button id="clear-filter" class="uc-icon-btn" title="Clear filter"><span class="material-icons">close</span></button>
     </div>
-    <div class="filter-row gap-xxs margin-bottom-xs">
-      <input type="text" id="filter-input" placeholder="Filter URLs..." autocomplete="off" class="typography-body">
-      <button id="clear-filter" title="Clear filter" class="typography-caption elevation-1">✕</button>
-    </div>
-    <div class="select-all-container margin-bottom-xxs">
+
+    <!-- ── Select All ─────────────────────────────────── -->
+    <div class="uc-select-all-row">
+      <label class="uc-checkbox-label">
         <input type="checkbox" id="select-all-checkbox" checked>
-        <label for="select-all-checkbox" class="typography-label">Select All</label>
+        <span>Select All</span>
+      </label>
     </div>
-    <div id="url-list-container" class="elevation-2 margin-bottom-s"></div>
-    <div class="actions-row gap-s margin-bottom-s">
-      <select id="export-format" class="typography-caption">
-        <option value="txt" selected>Plain .txt</option>
-        <option value="csv">CSV (.csv)</option>
-        <option value="md">Markdown List</option>
+
+    <!-- ── Tab List ───────────────────────────────────── -->
+    <div id="url-list-container" class="uc-list"></div>
+
+    <!-- ── Tab Management ────────────────────────────── -->
+    <section class="uc-section">
+      <p class="uc-section-label">Tab Management</p>
+
+      <!-- Sort row -->
+      <div class="uc-mgmt-row">
+        <select id="sort-action-select" class="uc-select uc-select-flex" title="Choose sort metric">
+          <option value="domain">Sort: Domain A→Z</option>
+          <option value="tab-count">Sort: Tab Count/Domain</option>
+        </select>
+        <button id="sort-tabs-btn" class="uc-btn uc-btn-secondary" title="Physically sort tabs in browser"><span class="material-icons">swap_vert</span>Sort</button>
+      </div>
+
+      <!-- Group row -->
+      <div class="uc-mgmt-row">
+        <select id="group-action-select" class="uc-select uc-select-flex" title="Choose group metric">
+          <option value="domain">Group: Root Domain</option>
+          <option value="subdomain">Group: Subdomain</option>
+        </select>
+        <button id="group-tabs-btn" class="uc-btn uc-btn-secondary" title="Group tabs in browser"><span class="material-icons">layers</span>Group</button>
+      </div>
+
+      <!-- Utilities row -->
+      <div class="uc-mgmt-row">
+        <button id="toggle-groups-btn" class="uc-btn uc-btn-secondary" title="Collapse or expand all tab groups"><span class="material-icons">expand_more</span>Toggle Groups</button>
+        <button id="sort-groups-btn" class="uc-btn uc-btn-secondary" title="Sort tab groups alphabetically A→Z"><span class="material-icons">sort</span>Sort Groups</button>
+        <button id="sleep-inactive-btn" class="uc-btn uc-btn-danger" title="Discard all inactive tabs to free RAM"><span class="material-icons">bedtime</span>Sleep Inactive</button>
+        <button id="restore-tabs-btn" class="uc-btn uc-btn-secondary uc-btn-icon" title="Undo last sort or group" disabled><span class="material-icons">restore</span></button>
+      </div>
+    </section>
+
+    <!-- ── Export & Destructive row ───────────────────── -->
+    <div class="uc-actions-row">
+      <select id="export-format" class="uc-select">
+        <option value="txt" selected>.txt</option>
+        <option value="csv">.csv</option>
+        <option value="md">.md</option>
       </select>
-      <button id="saveButton" title="Save selected URLs to file" class="typography-caption elevation-1">Save</button>
-      <button id="clear-duplicate-btn" title="Close duplicate tabs" class="typography-caption elevation-1">Clear Duplicate Tabs</button>
+      <button id="saveButton" class="uc-btn uc-btn-secondary" title="Save selected URLs to file"><span class="material-icons">save</span>Save</button>
+      <button id="sleep-selected-btn" class="uc-btn uc-btn-danger" title="Discard selected tabs to free RAM"><span class="material-icons">bedtime</span>Sleep Sel.</button>
+      <button id="clear-duplicate-btn" class="uc-btn uc-btn-danger" title="Close duplicate tabs"><span class="material-icons">delete_sweep</span>Clear Dups</button>
     </div>
-    <div id="duplicate-confirm" class="hidden">
-      <div class="confirm-box">
-        <div id="duplicate-list"></div>
-        <button id="confirm-close-duplicates">Close Duplicates</button>
-        <button id="cancel-close-duplicates">Cancel</button>
+
+    <!-- ── Duplicate confirm modal ───────────────────── -->
+    <div id="duplicate-confirm" class="uc-modal-backdrop hidden">
+      <div class="uc-modal">
+        <div id="duplicate-list" class="uc-modal-body"></div>
+        <div class="uc-modal-actions">
+          <button id="confirm-close-duplicates" class="uc-btn uc-btn-danger">Close Duplicates</button>
+          <button id="cancel-close-duplicates" class="uc-btn uc-btn-secondary">Cancel</button>
+        </div>
       </div>
     </div>
-    <div class="tab-mgmt-section margin-bottom-s">
-      <span class="tab-mgmt-label typography-caption">Tab Management</span>
-      <div class="actions-row gap-s">
-        <button id="sort-by-domain-btn" title="Sort all tabs by domain" class="typography-caption elevation-1">Sort by Domain</button>
-        <button id="group-by-domain-btn" title="Group tabs into Chrome Tab Groups by domain" class="typography-caption elevation-1">Group by Domain</button>
-        <button id="restore-tabs-btn" title="Undo last sort or group operation" class="typography-caption elevation-1" disabled>Restore</button>
-      </div>
-    </div>
-    <button id="copyButton" class="elevation-2">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M11.5 1.5H2.5C1.94772 1.5 1.5 1.94772 1.5 2.5V11.5C1.5 12.0523 1.94772 12.5 2.5 12.5H11.5C12.0523 12.5 12.5 12.0523 12.5 11.5V2.5C12.5 1.94772 12.0523 1.5 11.5 1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M14.5 4.5V13.5C14.5 14.0523 14.0523 14.5 13.5 14.5H4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span class="typography-label">Copy Selected URLs</span>
+
+    <!-- ── Primary CTA ────────────────────────────────── -->
+    <button id="copyButton" class="uc-btn uc-btn-primary uc-btn-full">
+      <span class="material-icons">content_copy</span>
+      Copy Selected URLs
     </button>
-    <div id="status" class="typography-caption margin-top-xxs"></div>
+
+    <div id="status" class="uc-status"></div>
   </div>
+
   <script src="../js/popup.js"></script>
 </body>
 </html>

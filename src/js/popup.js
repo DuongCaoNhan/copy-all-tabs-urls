@@ -18,9 +18,15 @@ document.addEventListener('DOMContentLoaded', async function() {
   const confirmCloseDuplicatesBtn = document.getElementById('confirm-close-duplicates');
   const cancelCloseDuplicatesBtn = document.getElementById('cancel-close-duplicates');
   const themeToggleBtn = document.getElementById('theme-toggle-btn');
-  // Tab Management buttons
-  const sortByDomainBtn = document.getElementById('sort-by-domain-btn');
-  const groupByDomainBtn = document.getElementById('group-by-domain-btn');
+  // Tab Management buttons (Phase 2)
+  const sortActionSelect = document.getElementById('sort-action-select');
+  const sortTabsBtn = document.getElementById('sort-tabs-btn');
+  const groupActionSelect = document.getElementById('group-action-select');
+  const groupTabsBtn = document.getElementById('group-tabs-btn');
+  const toggleGroupsBtn = document.getElementById('toggle-groups-btn');
+  const sortGroupsBtn = document.getElementById('sort-groups-btn');
+  const sleepInactiveBtn = document.getElementById('sleep-inactive-btn');
+  const sleepSelectedBtn = document.getElementById('sleep-selected-btn');
   const restoreTabsBtn = document.getElementById('restore-tabs-btn');
 
   filterInput.focus();
@@ -61,6 +67,16 @@ document.addEventListener('DOMContentLoaded', async function() {
       tabs.sort((a,b)=> extractDomain(a.url).localeCompare(extractDomain(b.url)) || a.index - b.index);
     } else if (sortMode === 'title') {
       tabs.sort((a,b)=> (a.title||'').localeCompare(b.title||'') || a.index - b.index);
+    } else if (sortMode === 'last-accessed') {
+      tabs.sort((a,b)=> (b.lastAccessed || 0) - (a.lastAccessed || 0) || a.index - b.index);
+    } else if (sortMode === 'tab-count') {
+      const domainCount = tabs.reduce((acc, t) => {
+        const d = extractDomain(t.url); acc[d] = (acc[d]||0) + 1; return acc;
+      }, {});
+      tabs.sort((a,b)=> {
+        const da = extractDomain(a.url), db = extractDomain(b.url);
+        return (domainCount[db] - domainCount[da]) || da.localeCompare(db) || a.index - b.index;
+      });
     } else { // index
       tabs.sort((a,b)=> a.index - b.index);
     }
@@ -90,11 +106,13 @@ document.addEventListener('DOMContentLoaded', async function() {
 
       const duplicate = urlCountMap && urlCountMap[tab.url] > 1;
       if (duplicate) urlItem.classList.add('duplicate');
+      if (tab.discarded) urlItem.classList.add('discarded');
 
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.id = `tab-${index}`;
       checkbox.value = tab.url;
+      checkbox.dataset.tabId = String(tab.id);
       checkbox.checked = true; // default
 
       const favicon = document.createElement('img');
@@ -421,37 +439,77 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
 
   /**
-   * Sorts all unpinned, non-internal tabs alphabetically by root domain,
-   * then moves them in a single bulk API call starting right after the
-   * last pinned tab.
+   * Shared helper: sorts and clusters all existing Tab Groups A→Z using
+   * chrome.tabGroups.move without saving state or touching the UI.
+   * Returns the tab index immediately after the last group so callers know
+   * where ungrouped tabs should begin.
+   */
+  async function _doSortGroups() {
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+    const pinnedCount = tabs.filter(t => t.pinned).length;
+    const groups = await chrome.tabGroups.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+    if (groups.length === 0) return pinnedCount;
+
+    groups.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+
+    // Pack each group consecutively right after pinned tabs.
+    let currentIndex = pinnedCount;
+    for (const group of groups) {
+      try {
+        const groupTabs = await chrome.tabs.query({ groupId: group.id });
+        await chrome.tabGroups.move(group.id, { index: currentIndex });
+        currentIndex += groupTabs.length;
+      } catch (err) {
+        console.warn(`_doSortGroups: could not move group "${group.title}":`, err.message);
+      }
+    }
+    // currentIndex is now the first slot after all grouped tabs.
+    return currentIndex;
+  }
+
+  /**
+   * Sorts only the FREE (ungrouped) tabs by root domain A→Z.
+   * Existing Tab Groups are sorted and clustered first so they are never
+   * broken apart by a chrome.tabs.move call.
    */
   async function sortTabsByDomain() {
     await saveTabState();
 
-    const tabs = await chrome.tabs.query({ currentWindow: true });
-    const pinnedCount = tabs.filter(t => t.pinned).length;
-    // firstUnpinnedIndex is the index where unpinned tabs begin.
-    const firstUnpinnedIndex = pinnedCount;
+    try {
+      // Step 1: Cluster + sort all groups; get the index where free tabs start.
+      const freeStart = await _doSortGroups();
 
-    // Only sort unpinned tabs with non-internal URLs.
-    const movable = tabs.filter(t => !t.pinned && !isSystemUrl(t.url));
+      // Step 2: Re-query; keep only free (ungrouped, unpinned, non-system) tabs.
+      const tabs = await chrome.tabs.query({ currentWindow: true });
+      const free = tabs.filter(
+        t => !t.pinned &&
+             t.groupId === chrome.tabGroups.TAB_GROUP_ID_NONE &&
+             !isSystemUrl(t.url)
+      );
+      if (free.length === 0) {
+        allTabs = await chrome.tabs.query({ currentWindow: true });
+        applyFilterSortAndRender();
+        return;
+      }
 
-    movable.sort((a, b) =>
-      extractDomain(a.url).localeCompare(extractDomain(b.url)) || a.index - b.index
-    );
+      // Step 3: Sort free tabs A→Z by root domain.
+      free.sort((a, b) =>
+        (extractDomain(a.url) || '').localeCompare(extractDomain(b.url) || '') || a.index - b.index
+      );
 
-    const sortedTabIds = movable.map(t => t.id);
-    if (sortedTabIds.length === 0) return;
+      // Step 4: Bulk-move free tabs to start at freeStart — groups stay untouched.
+      await chrome.tabs.move(free.map(t => t.id), { index: freeStart });
 
-    // Single bulk move — avoids per-tab race conditions and UI glitches.
-    await chrome.tabs.move(sortedTabIds, { index: firstUnpinnedIndex });
-
-    allTabs = await chrome.tabs.query({ currentWindow: true });
-    applyFilterSortAndRender();
-
-    statusDiv.textContent = `✅ Sorted ${sortedTabIds.length} tabs by domain.`;
-    statusDiv.classList.add('success');
-    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+      allTabs = await chrome.tabs.query({ currentWindow: true });
+      applyFilterSortAndRender();
+      statusDiv.textContent = `✅ Sorted ${free.length} ungrouped tab${free.length !== 1 ? 's' : ''} by domain.`;
+      statusDiv.classList.add('success');
+      setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+    } catch (err) {
+      console.error('sortTabsByDomain failed:', err);
+      statusDiv.textContent = '❌ Sort failed.';
+      setTimeout(() => { statusDiv.textContent = ''; }, 2000);
+    }
   }
 
   /**
@@ -463,11 +521,24 @@ document.addEventListener('DOMContentLoaded', async function() {
     await saveTabState();
 
     const tabs = await chrome.tabs.query({ currentWindow: true });
+    const pinnedCount = tabs.filter(t => t.pinned).length;
 
-    // Exclude pinned and internal-URL tabs from grouping.
-    const eligible = tabs.filter(t => !t.pinned && !isSystemUrl(t.url));
+    // Sort eligible tabs A→Z by root domain so same-domain tabs land
+    // adjacent to each other and groups appear in alphabetical order.
+    const eligible = tabs
+      .filter(t => !t.pinned && !isSystemUrl(t.url))
+      .sort((a, b) =>
+        (extractDomain(a.url) || '(other)').localeCompare(extractDomain(b.url) || '(other)')
+        || a.index - b.index
+      );
 
-    // Build Map<domain → tabId[]>.
+    // Move each tab individually to guarantee sorted adjacent placement.
+    // chrome.tabs.move(array) does not preserve array order reliably.
+    for (let i = 0; i < eligible.length; i++) {
+      await chrome.tabs.move(eligible[i].id, { index: pinnedCount + i });
+    }
+
+    // Build Map<domain → tabId[]> — insertion order is now A→Z.
     const domainMap = new Map();
     for (const tab of eligible) {
       const domain = extractDomain(tab.url) || '(other)';
@@ -507,8 +578,268 @@ document.addEventListener('DOMContentLoaded', async function() {
     restoreTabsBtn.disabled = false;
   }
 
-  // Wire Tab Management event listeners.
-  sortByDomainBtn.addEventListener('click', sortTabsByDomain);
-  groupByDomainBtn.addEventListener('click', groupTabsByDomain);
+  // ── Phase 2 new functions ──────────────────────────────────
+
+  /**
+   * Collapses all tab groups if any are currently expanded, otherwise
+   * expands them all. Updates the button label to reflect the next action.
+   */
+  /**
+   * Clusters and sorts all Tab Groups alphabetically by title using
+   * chrome.tabGroups.move — safe for groups because it moves the entire
+   * group as a unit without touching individual tab indices.
+   *
+   * Indexing logic:
+   *   currentIndex starts right after pinned tabs.
+   *   After each group.move(), advance currentIndex by the tab count of that
+   *   group so the next group is placed immediately after it.
+   */
+  async function sortTabGroups() {
+    await saveTabState();
+    const groups = await chrome.tabGroups.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+    if (groups.length === 0) {
+      statusDiv.textContent = 'No tab groups to sort.';
+      setTimeout(() => { statusDiv.textContent = ''; }, 2000);
+      return;
+    }
+    // Delegate to the shared helper which does the actual moves.
+    await _doSortGroups();
+    allTabs = await chrome.tabs.query({ currentWindow: true });
+    applyFilterSortAndRender();
+    statusDiv.textContent = `✅ Sorted ${groups.length} tab group${groups.length !== 1 ? 's' : ''} A→Z.`;
+    statusDiv.classList.add('success');
+    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+  }
+
+  async function toggleAllGroups() {
+    try {
+      const groups = await chrome.tabGroups.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+      if (groups.length === 0) {
+        statusDiv.textContent = 'No tab groups found.';
+        setTimeout(() => { statusDiv.textContent = ''; }, 2000);
+        return;
+      }
+      const anyExpanded = groups.some(g => !g.collapsed);
+      for (const group of groups) {
+        try {
+          await chrome.tabGroups.update(group.id, { collapsed: anyExpanded });
+        } catch (err) {
+          console.warn(`Could not update group ${group.id}:`, err.message);
+        }
+      }
+      toggleGroupsBtn.innerHTML = anyExpanded ? '<span class="material-icons">expand_less</span>Toggle Groups' : '<span class="material-icons">expand_more</span>Toggle Groups';
+      statusDiv.textContent = anyExpanded ? '▶ All groups collapsed.' : '▼ All groups expanded.';
+      statusDiv.classList.add('success');
+      setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 2000);
+    } catch (err) {
+      console.error('toggleAllGroups failed:', err);
+      statusDiv.textContent = '❌ Could not toggle groups.';
+      setTimeout(() => { statusDiv.textContent = ''; }, 2000);
+    }
+  }
+
+  /**
+   * Physically sorts browser tabs using the selected metric from
+   * #sort-action-select and then refreshes the list display.
+   */
+  async function executeSort() {
+    const metric = sortActionSelect.value;
+    if (metric === 'domain') {
+      await sortTabsByDomain();
+    } else if (metric === 'tab-count') {
+      await sortTabsByTabCount();
+    }
+  }
+
+  /**
+   * Physically sorts unpinned tabs so that domains with the most tabs
+   * appear first, with alphabetical tie-breaking.
+   */
+  async function sortTabsByTabCount() {
+    await saveTabState();
+    try {
+      // Step 1: Cluster + sort all groups; get index where free tabs start.
+      const freeStart = await _doSortGroups();
+
+      // Step 2: Re-query; keep only free (ungrouped, unpinned, non-system) tabs.
+      const tabs = await chrome.tabs.query({ currentWindow: true });
+      const free = tabs.filter(
+        t => !t.pinned &&
+             t.groupId === chrome.tabGroups.TAB_GROUP_ID_NONE &&
+             !isSystemUrl(t.url)
+      );
+      if (free.length === 0) {
+        allTabs = await chrome.tabs.query({ currentWindow: true });
+        applyFilterSortAndRender();
+        return;
+      }
+
+      // Step 3: Count tabs per domain across free tabs only.
+      const domainCount = free.reduce((acc, t) => {
+        const d = extractDomain(t.url); acc[d] = (acc[d] || 0) + 1; return acc;
+      }, {});
+
+      // Sort: most tabs first, then A→Z, then original index.
+      free.sort((a, b) => {
+        const da = extractDomain(a.url), db = extractDomain(b.url);
+        return (domainCount[db] - domainCount[da]) || da.localeCompare(db) || a.index - b.index;
+      });
+
+      // Step 4: Bulk-move free tabs after all groups.
+      await chrome.tabs.move(free.map(t => t.id), { index: freeStart });
+
+      allTabs = await chrome.tabs.query({ currentWindow: true });
+      applyFilterSortAndRender();
+      statusDiv.textContent = `✅ Sorted ${free.length} ungrouped tab${free.length !== 1 ? 's' : ''} by tab count.`;
+      statusDiv.classList.add('success');
+      setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+    } catch (err) {
+      console.error('sortTabsByTabCount failed:', err);
+      statusDiv.textContent = '❌ Sort failed.';
+      setTimeout(() => { statusDiv.textContent = ''; }, 2000);
+    }
+  }
+
+  /**
+   * Groups browser tabs using the selected metric from #group-action-select.
+   */
+  async function executeGroup() {
+    const metric = groupActionSelect.value;
+    if (metric === 'domain') {
+      await groupTabsByDomain();
+    } else if (metric === 'subdomain') {
+      await groupTabsBySubdomain();
+    }
+  }
+
+  /**
+   * Groups tabs by full hostname (preserving subdomains, e.g. docs.github.com
+   * is separate from github.com). Mirrors groupTabsByDomain logic.
+   */
+  async function groupTabsBySubdomain() {
+    await saveTabState();
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+    const pinnedCount = tabs.filter(t => t.pinned).length;
+
+    const getHost = (url) => { try { return new URL(url).hostname || '(other)'; } catch { return '(other)'; } };
+
+    // Sort eligible tabs A→Z by full hostname so same-subdomain tabs land
+    // adjacent to each other and groups appear in alphabetical order.
+    const eligible = tabs
+      .filter(t => !t.pinned && !isSystemUrl(t.url))
+      .sort((a, b) => getHost(a.url).localeCompare(getHost(b.url)) || a.index - b.index);
+
+    // Move each tab individually to guarantee sorted adjacent placement.
+    // chrome.tabs.move(array) does not preserve array order reliably.
+    for (let i = 0; i < eligible.length; i++) {
+      await chrome.tabs.move(eligible[i].id, { index: pinnedCount + i });
+    }
+
+    // Build Map<host → tabId[]> — insertion order is now A→Z.
+    const hostMap = new Map();
+    for (const tab of eligible) {
+      const host = getHost(tab.url);
+      if (!hostMap.has(host)) hostMap.set(host, []);
+      hostMap.get(host).push(tab.id);
+    }
+
+    for (const [host, tabIds] of hostMap) {
+      try {
+        if (tabIds.length >= 2) {
+          const groupId = await chrome.tabs.group({ tabIds });
+          await chrome.tabGroups.update(groupId, { title: host });
+        } else {
+          await chrome.tabs.ungroup(tabIds);
+        }
+      } catch (err) {
+        console.warn(`Could not group/ungroup host "${host}":`, err.message);
+      }
+    }
+
+    allTabs = await chrome.tabs.query({ currentWindow: true });
+    applyFilterSortAndRender();
+    statusDiv.textContent = '✅ Grouped tabs by subdomain.';
+    statusDiv.classList.add('success');
+    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+  }
+
+  /**
+   * Discards all inactive tabs (excluding: active, audible, loading, pinned,
+   * and already-discarded tabs) to free RAM.
+   */
+  async function sleepInactiveTabs() {
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+    const candidates = tabs.filter(t =>
+      !t.active && !t.audible && !t.discarded && t.status !== 'loading' && !t.pinned
+    );
+    if (candidates.length === 0) {
+      statusDiv.textContent = 'No inactive tabs to sleep.';
+      setTimeout(() => { statusDiv.textContent = ''; }, 2000);
+      return;
+    }
+    let count = 0;
+    for (const tab of candidates) {
+      try {
+        await chrome.tabs.discard(tab.id);
+        count++;
+      } catch (err) {
+        console.warn(`Could not discard tab ${tab.id}:`, err.message);
+      }
+    }
+    allTabs = await chrome.tabs.query({ currentWindow: true });
+    applyFilterSortAndRender();
+    statusDiv.textContent = `💤 Slept ${count} inactive tab${count !== 1 ? 's' : ''}.`;
+    statusDiv.classList.add('success');
+    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+  }
+
+  /**
+   * Discards the currently-selected (checked) tabs, applying the same
+   * exclusions as sleepInactiveTabs (skips active, audible, loading, pinned).
+   */
+  async function sleepSelectedTabs() {
+    const checkedBoxes = Array.from(
+      urlListContainer.querySelectorAll('input[type="checkbox"]:checked')
+    );
+    if (checkedBoxes.length === 0) {
+      statusDiv.textContent = 'No tabs selected.';
+      setTimeout(() => { statusDiv.textContent = ''; }, 2000);
+      return;
+    }
+
+    const selectedIds = checkedBoxes
+      .map(cb => parseInt(cb.dataset.tabId, 10))
+      .filter(id => !isNaN(id));
+
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+    const tabMap = new Map(tabs.map(t => [t.id, t]));
+
+    let count = 0;
+    for (const id of selectedIds) {
+      const tab = tabMap.get(id);
+      if (!tab) continue;
+      if (tab.active || tab.audible || tab.discarded || tab.status === 'loading' || tab.pinned) continue;
+      try {
+        await chrome.tabs.discard(id);
+        count++;
+      } catch (err) {
+        console.warn(`Could not discard tab ${id}:`, err.message);
+      }
+    }
+
+    allTabs = await chrome.tabs.query({ currentWindow: true });
+    applyFilterSortAndRender();
+    statusDiv.textContent = `💤 Slept ${count} selected tab${count !== 1 ? 's' : ''}.`;
+    statusDiv.classList.add('success');
+    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+  }
+
+  // Wire Tab Management event listeners (Phase 2).
+  sortTabsBtn.addEventListener('click', executeSort);
+  groupTabsBtn.addEventListener('click', executeGroup);
+  toggleGroupsBtn.addEventListener('click', toggleAllGroups);
+  sortGroupsBtn.addEventListener('click', sortTabGroups);
+  sleepInactiveBtn.addEventListener('click', sleepInactiveTabs);
+  sleepSelectedBtn.addEventListener('click', sleepSelectedTabs);
   restoreTabsBtn.addEventListener('click', restoreTabState);
 });

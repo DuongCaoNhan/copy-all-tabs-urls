@@ -156,13 +156,33 @@ document.addEventListener('DOMContentLoaded', async function() {
   async function sortTabsByDomain() {
     await saveTabState();
     const tabs = await chrome.tabs.query({ currentWindow: true });
-    const firstUnpinnedIndex = tabs.filter(t => t.pinned).length;
-    const movable = tabs.filter(t => !t.pinned && !isSystemUrl(t.url));
-    movable.sort((a, b) => extractDomain(a.url).localeCompare(extractDomain(b.url)) || a.index - b.index);
-    const sortedIds = movable.map(t => t.id);
-    if (sortedIds.length > 0) {
-      await chrome.tabs.move(sortedIds, { index: firstUnpinnedIndex });
+
+    const segments = [];
+    let currentSegment = [];
+
+    for (const tab of tabs) {
+      if (!tab.pinned && !isSystemUrl(tab.url)) {
+        currentSegment.push(tab);
+      } else if (currentSegment.length > 0) {
+        segments.push(currentSegment);
+        currentSegment = [];
+      }
     }
+
+    if (currentSegment.length > 0) {
+      segments.push(currentSegment);
+    }
+
+    for (const segment of segments) {
+      const sortedSegment = [...segment].sort(
+        (a, b) => extractDomain(a.url).localeCompare(extractDomain(b.url)) || a.index - b.index
+      );
+      const sortedIds = sortedSegment.map(t => t.id);
+      if (sortedIds.length > 1) {
+        await chrome.tabs.move(sortedIds, { index: segment[0].index });
+      }
+    }
+
     allTabs = await chrome.tabs.query({ currentWindow: true });
     applyFilterSortAndRender();
     statusDiv.textContent = '✅ Tabs sorted by domain.';

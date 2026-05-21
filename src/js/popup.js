@@ -27,6 +27,10 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   let allTabs = [];
   let lastRenderedTabs = [];
+  const TAB_MANAGER_STATE_KEY = 'tabManagerState';
+  const TAB_GROUP_ID_NONE = typeof chrome.tabGroups !== 'undefined'
+    ? chrome.tabGroups.TAB_GROUP_ID_NONE
+    : -1;
 
   const isSystemUrl = (url) => /^(chrome|edge|about|chrome-extension):/i.test(url);
   const extractDomain = (url) => {
@@ -143,7 +147,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     statusDiv.textContent = 'Error loading tabs.';
   }
 
-  // Event bindings
   filterInput.addEventListener('input', () => applyFilterSortAndRender());
   sortSelect.addEventListener('change', () => applyFilterSortAndRender());
   hideDuplicatesCheckbox.addEventListener('change', () => applyFilterSortAndRender());
@@ -305,8 +308,34 @@ document.addEventListener('DOMContentLoaded', async function() {
    */
   async function saveTabState() {
     const tabs = await chrome.tabs.query({ currentWindow: true });
-    const state = tabs.map(({ id, index, groupId }) => ({ id, index, groupId }));
-    await chrome.storage.local.set({ tabManagerState: state });
+    const groupIds = [...new Set(
+      tabs
+        .map(({ groupId }) => groupId)
+        .filter(groupId => groupId !== TAB_GROUP_ID_NONE && groupId >= 0)
+    )];
+    const groups = [];
+
+    for (const groupId of groupIds) {
+      try {
+        const { title, color } = await chrome.tabGroups.get(groupId);
+        groups.push({ groupId, title, color });
+      } catch (err) {
+        console.warn(`Tab group ${groupId} metadata could not be saved:`, err.message);
+      }
+    }
+
+    const state = {
+      windowId: tabs[0]?.windowId ?? null,
+      tabs: tabs.map(({ id, index, groupId }) => ({
+        id,
+        index,
+        groupId,
+        wasGrouped: groupId !== TAB_GROUP_ID_NONE && groupId >= 0
+      })),
+      groups
+    };
+
+    await chrome.storage.local.set({ [TAB_MANAGER_STATE_KEY]: state });
     restoreTabsBtn.disabled = false;
   }
 
@@ -318,12 +347,16 @@ document.addEventListener('DOMContentLoaded', async function() {
    * a closed tab never aborts the entire restore.
    */
   async function restoreTabState() {
-    const result = await chrome.storage.local.get('tabManagerState');
-    const state = result.tabManagerState;
-    if (!state || state.length === 0) return;
+    const result = await chrome.storage.local.get(TAB_MANAGER_STATE_KEY);
+    const state = result[TAB_MANAGER_STATE_KEY];
+    const currentWindowId = allTabs[0]?.windowId ?? null;
+    if (!state || !Array.isArray(state.tabs) || state.tabs.length === 0 || state.windowId !== currentWindowId) {
+      restoreTabsBtn.disabled = true;
+      return;
+    }
 
     // Sort by original index so moves are applied in order.
-    const sorted = [...state].sort((a, b) => a.index - b.index);
+    const sorted = [...state.tabs].sort((a, b) => a.index - b.index);
 
     // Phase 1: move each tab back to its original index.
     for (const entry of sorted) {
@@ -334,27 +367,48 @@ document.addEventListener('DOMContentLoaded', async function() {
       }
     }
 
-    // Phase 2: restore group membership.
-    // TAB_GROUP_ID_NONE is -1 in the Chrome API.
-    const NONE = typeof chrome.tabGroups !== 'undefined'
-      ? chrome.tabGroups.TAB_GROUP_ID_NONE
-      : -1;
+    // Phase 2: restore group membership using saved group metadata.
+    const survivingTabs = await chrome.tabs.query({ currentWindow: true });
+    const survivingTabIds = new Set(survivingTabs.map(({ id }) => id));
+    const groupedTabs = new Map();
+    const savedGroups = new Map((state.groups || []).map(group => [group.groupId, group]));
 
     for (const entry of sorted) {
-      try {
-        if (entry.groupId !== undefined && entry.groupId !== NONE && entry.groupId >= 0) {
-          // Re-attach to original group (group must still exist).
-          await chrome.tabs.group({ tabIds: [entry.id], groupId: entry.groupId });
-        } else {
-          // Explicitly ungroup so the tab is not trapped inside a new group.
-          await chrome.tabs.ungroup([entry.id]);
+      if (!survivingTabIds.has(entry.id)) {
+        continue;
+      }
+
+      if (entry.wasGrouped && entry.groupId !== undefined && entry.groupId !== TAB_GROUP_ID_NONE && entry.groupId >= 0) {
+        if (!groupedTabs.has(entry.groupId)) {
+          groupedTabs.set(entry.groupId, []);
         }
+        groupedTabs.get(entry.groupId).push(entry.id);
+        continue;
+      }
+
+      try {
+        await chrome.tabs.ungroup([entry.id]);
       } catch (err) {
-        console.warn(`Tab ${entry.id} group restore skipped:`, err.message);
+        console.warn(`Tab ${entry.id} ungroup restore skipped:`, err.message);
       }
     }
 
-    await chrome.storage.local.remove('tabManagerState');
+    for (const [groupId, tabIds] of groupedTabs) {
+      try {
+        const newGroupId = await chrome.tabs.group({ tabIds });
+        const savedGroup = savedGroups.get(groupId);
+        if (savedGroup) {
+          await chrome.tabGroups.update(newGroupId, {
+            title: savedGroup.title,
+            color: savedGroup.color
+          });
+        }
+      } catch (err) {
+        console.warn(`Group restore skipped for ${groupId}:`, err.message);
+      }
+    }
+
+    await chrome.storage.local.remove(TAB_MANAGER_STATE_KEY);
     restoreTabsBtn.disabled = true;
 
     // Refresh the displayed list.
@@ -444,8 +498,12 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
 
   // Init: enable Restore button if a saved state already exists.
-  const initState = await chrome.storage.local.get('tabManagerState');
-  if (initState.tabManagerState && initState.tabManagerState.length > 0) {
+  const initState = await chrome.storage.local.get(TAB_MANAGER_STATE_KEY);
+  if (
+    initState[TAB_MANAGER_STATE_KEY] &&
+    initState[TAB_MANAGER_STATE_KEY].windowId === allTabs[0]?.windowId &&
+    initState[TAB_MANAGER_STATE_KEY].tabs?.length > 0
+  ) {
     restoreTabsBtn.disabled = false;
   }
 

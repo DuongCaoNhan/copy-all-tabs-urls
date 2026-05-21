@@ -200,9 +200,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
   }
 
-  sortByDomainBtn.addEventListener('click', sortTabsByDomain);
-  groupByDomainBtn.addEventListener('click', groupTabsByDomain);
-  restoreTabsBtn.addEventListener('click', restoreTabState);
   filterInput.addEventListener('input', () => applyFilterSortAndRender());
   sortSelect.addEventListener('change', () => applyFilterSortAndRender());
   hideDuplicatesCheckbox.addEventListener('change', () => applyFilterSortAndRender());

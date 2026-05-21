@@ -1006,3 +1006,44 @@ body.mode-auto {
 #url-list-container, .theme-row, .actions-row, .export-row, .filter-row, .duplicate-confirm {
   border-radius: 12px;
 }
+
+/* ── Tab Management Section ─────────────────────────────── */
+.tab-mgmt-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacingVerticalXXS, 4px);
+  padding: var(--spacingVerticalXS, 4px) 0;
+  border-top: var(--strokeWidthThin, 1px) solid var(--colorNeutralStroke1, #d1d1d1);
+}
+
+.tab-mgmt-label {
+  font-size: var(--fontSizeBase200, 12px);
+  font-weight: var(--fontWeightSemibold, 600);
+  color: var(--colorNeutralForeground2, #605e5c);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+[data-theme="dark"] .tab-mgmt-section {
+  border-top-color: var(--colorNeutralStroke1, #666666);
+}
+
+[data-theme="dark"] .tab-mgmt-label {
+  color: var(--colorNeutralForeground2, #d6d6d6);
+}
+
+/* Restore button: accent tint when enabled */
+#restore-tabs-btn:not(:disabled) {
+  border-color: var(--colorBrandBackground, #0078d4);
+  color: var(--colorBrandBackground, #0078d4);
+}
+
+#restore-tabs-btn:not(:disabled):hover {
+  background: var(--colorBrandBackground, #0078d4);
+  color: var(--colorNeutralForegroundOnBrand, #ffffff);
+}
+
+#restore-tabs-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

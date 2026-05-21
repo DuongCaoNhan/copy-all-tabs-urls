@@ -18,6 +18,10 @@ document.addEventListener('DOMContentLoaded', async function() {
   const confirmCloseDuplicatesBtn = document.getElementById('confirm-close-duplicates');
   const cancelCloseDuplicatesBtn = document.getElementById('cancel-close-duplicates');
   const themeToggleBtn = document.getElementById('theme-toggle-btn');
+  // Tab Management buttons
+  const sortByDomainBtn = document.getElementById('sort-by-domain-btn');
+  const groupByDomainBtn = document.getElementById('group-by-domain-btn');
+  const restoreTabsBtn = document.getElementById('restore-tabs-btn');
 
   filterInput.focus();
 
@@ -291,4 +295,162 @@ document.addEventListener('DOMContentLoaded', async function() {
       saveButton.click();
     }
   });
+
+  // ── Tab Management ─────────────────────────────────────────
+
+  /**
+   * Saves the id, index, and groupId of every tab in the current window
+   * to chrome.storage.local so it can be restored later.
+   * Pinned tabs are included so their groupId is preserved on restore.
+   */
+  async function saveTabState() {
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+    const state = tabs.map(({ id, index, groupId }) => ({ id, index, groupId }));
+    await chrome.storage.local.set({ tabManagerState: state });
+    restoreTabsBtn.disabled = false;
+  }
+
+  /**
+   * Reads the saved tab state and moves every surviving tab back to its
+   * original index.  Tabs that were ungrouped (groupId === -1) are
+   * explicitly ungrouped again; tabs that belonged to a group are
+   * re-attached to that group.  Each call is individually try-catched so
+   * a closed tab never aborts the entire restore.
+   */
+  async function restoreTabState() {
+    const result = await chrome.storage.local.get('tabManagerState');
+    const state = result.tabManagerState;
+    if (!state || state.length === 0) return;
+
+    // Sort by original index so moves are applied in order.
+    const sorted = [...state].sort((a, b) => a.index - b.index);
+
+    // Phase 1: move each tab back to its original index.
+    for (const entry of sorted) {
+      try {
+        await chrome.tabs.move(entry.id, { index: entry.index });
+      } catch (err) {
+        console.warn(`Tab ${entry.id} could not be moved (may be closed):`, err.message);
+      }
+    }
+
+    // Phase 2: restore group membership.
+    // TAB_GROUP_ID_NONE is -1 in the Chrome API.
+    const NONE = typeof chrome.tabGroups !== 'undefined'
+      ? chrome.tabGroups.TAB_GROUP_ID_NONE
+      : -1;
+
+    for (const entry of sorted) {
+      try {
+        if (entry.groupId !== undefined && entry.groupId !== NONE && entry.groupId >= 0) {
+          // Re-attach to original group (group must still exist).
+          await chrome.tabs.group({ tabIds: [entry.id], groupId: entry.groupId });
+        } else {
+          // Explicitly ungroup so the tab is not trapped inside a new group.
+          await chrome.tabs.ungroup([entry.id]);
+        }
+      } catch (err) {
+        console.warn(`Tab ${entry.id} group restore skipped:`, err.message);
+      }
+    }
+
+    await chrome.storage.local.remove('tabManagerState');
+    restoreTabsBtn.disabled = true;
+
+    // Refresh the displayed list.
+    allTabs = await chrome.tabs.query({ currentWindow: true });
+    applyFilterSortAndRender();
+
+    statusDiv.textContent = '↩ Tabs restored.';
+    statusDiv.classList.add('success');
+    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+  }
+
+  /**
+   * Sorts all unpinned, non-internal tabs alphabetically by root domain,
+   * then moves them in a single bulk API call starting right after the
+   * last pinned tab.
+   */
+  async function sortTabsByDomain() {
+    await saveTabState();
+
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+    const pinnedCount = tabs.filter(t => t.pinned).length;
+    // firstUnpinnedIndex is the index where unpinned tabs begin.
+    const firstUnpinnedIndex = pinnedCount;
+
+    // Only sort unpinned tabs with non-internal URLs.
+    const movable = tabs.filter(t => !t.pinned && !isSystemUrl(t.url));
+
+    movable.sort((a, b) =>
+      extractDomain(a.url).localeCompare(extractDomain(b.url)) || a.index - b.index
+    );
+
+    const sortedTabIds = movable.map(t => t.id);
+    if (sortedTabIds.length === 0) return;
+
+    // Single bulk move — avoids per-tab race conditions and UI glitches.
+    await chrome.tabs.move(sortedTabIds, { index: firstUnpinnedIndex });
+
+    allTabs = await chrome.tabs.query({ currentWindow: true });
+    applyFilterSortAndRender();
+
+    statusDiv.textContent = `✅ Sorted ${sortedTabIds.length} tabs by domain.`;
+    statusDiv.classList.add('success');
+    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+  }
+
+  /**
+   * Groups all unpinned, non-internal tabs by their root domain using
+   * Chrome Tab Groups.  Domains with 2+ tabs get a named group;
+   * single-tab domains are explicitly ungrouped.
+   */
+  async function groupTabsByDomain() {
+    await saveTabState();
+
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+
+    // Exclude pinned and internal-URL tabs from grouping.
+    const eligible = tabs.filter(t => !t.pinned && !isSystemUrl(t.url));
+
+    // Build Map<domain → tabId[]>.
+    const domainMap = new Map();
+    for (const tab of eligible) {
+      const domain = extractDomain(tab.url) || '(other)';
+      if (!domainMap.has(domain)) domainMap.set(domain, []);
+      domainMap.get(domain).push(tab.id);
+    }
+
+    for (const [domain, tabIds] of domainMap) {
+      try {
+        if (tabIds.length >= 2) {
+          const groupId = await chrome.tabs.group({ tabIds });
+          await chrome.tabGroups.update(groupId, { title: domain });
+        } else {
+          // Ungroup lone tabs so they are never left inside a stale group.
+          await chrome.tabs.ungroup(tabIds);
+        }
+      } catch (err) {
+        console.warn(`Could not group/ungroup domain "${domain}":`, err.message);
+      }
+    }
+
+    allTabs = await chrome.tabs.query({ currentWindow: true });
+    applyFilterSortAndRender();
+
+    statusDiv.textContent = `✅ Grouped tabs by domain.`;
+    statusDiv.classList.add('success');
+    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+  }
+
+  // Init: enable Restore button if a saved state already exists.
+  const initState = await chrome.storage.local.get('tabManagerState');
+  if (initState.tabManagerState && initState.tabManagerState.length > 0) {
+    restoreTabsBtn.disabled = false;
+  }
+
+  // Wire Tab Management event listeners.
+  sortByDomainBtn.addEventListener('click', sortTabsByDomain);
+  groupByDomainBtn.addEventListener('click', groupTabsByDomain);
+  restoreTabsBtn.addEventListener('click', restoreTabState);
 });

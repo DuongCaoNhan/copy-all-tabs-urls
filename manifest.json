@@ -5,7 +5,8 @@
   "description": "Collect, filter, sort and copy URLs from all browser tabs",
   "permissions": [
     "tabs",
-    "storage"
+    "storage",
+    "tabGroups"
   ],
   "action": {
     "default_popup": "src/popup/popup.html",

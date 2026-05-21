@@ -427,6 +427,19 @@ body {
   gap: var(--spacingHorizontalS, 8px);
 }
 
+.tab-mgmt-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacingVerticalXS, 4px);
+}
+
+.tab-mgmt-label {
+  color: var(--colorNeutralForeground3, #616161);
+  font-weight: var(--fontWeightSemibold, 600);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .actions-row button, #saveButton { 
   flex: 0 0 auto;
   padding: var(--spacingVerticalXS, 4px) var(--spacingHorizontalS, 8px);

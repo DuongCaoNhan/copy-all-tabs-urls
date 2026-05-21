@@ -18,6 +18,9 @@ document.addEventListener('DOMContentLoaded', async function() {
   const confirmCloseDuplicatesBtn = document.getElementById('confirm-close-duplicates');
   const cancelCloseDuplicatesBtn = document.getElementById('cancel-close-duplicates');
   const themeToggleBtn = document.getElementById('theme-toggle-btn');
+  const sortByDomainBtn = document.getElementById('sort-by-domain-btn');
+  const groupByDomainBtn = document.getElementById('group-by-domain-btn');
+  const restoreTabsBtn = document.getElementById('restore-tabs-btn');
 
   filterInput.focus();
 
@@ -139,7 +142,102 @@ document.addEventListener('DOMContentLoaded', async function() {
     statusDiv.textContent = 'Error loading tabs.';
   }
 
-  // Event bindings
+  // Enable Restore button if a saved state already exists
+  try {
+    const initResult = await chrome.storage.local.get('tabManagerState');
+    if (initResult.tabManagerState) restoreTabsBtn.disabled = false;
+  } catch (e) { /* ignore */ }
+
+  // --- Tab Management functions ---
+
+  async function saveTabState() {
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+    const state = tabs.map(t => ({ id: t.id, index: t.index, groupId: t.groupId }));
+    await chrome.storage.local.set({ tabManagerState: state });
+    restoreTabsBtn.disabled = false;
+  }
+
+  async function restoreTabState() {
+    const result = await chrome.storage.local.get('tabManagerState');
+    const state = result.tabManagerState;
+    if (!state) return;
+
+    const sorted = [...state].sort((a, b) => a.index - b.index);
+
+    for (const entry of sorted) {
+      try { await chrome.tabs.move(entry.id, { index: entry.index }); }
+      catch (e) { console.warn(`Could not move tab ${entry.id}:`, e); }
+    }
+
+    for (const entry of sorted) {
+      try {
+        if (entry.groupId >= 0) {
+          await chrome.tabs.group({ tabIds: [entry.id], groupId: entry.groupId });
+        } else {
+          await chrome.tabs.ungroup([entry.id]);
+        }
+      } catch (e) { console.warn(`Could not restore group for tab ${entry.id}:`, e); }
+    }
+
+    await chrome.storage.local.remove('tabManagerState');
+    restoreTabsBtn.disabled = true;
+    allTabs = await chrome.tabs.query({ currentWindow: true });
+    applyFilterSortAndRender();
+    statusDiv.textContent = '↩️ Tabs restored.';
+    statusDiv.classList.add('success');
+    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+  }
+
+  async function sortTabsByDomain() {
+    await saveTabState();
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+    const firstUnpinnedIndex = tabs.filter(t => t.pinned).length;
+    const movable = tabs.filter(t => !t.pinned && !isSystemUrl(t.url));
+    movable.sort((a, b) => extractDomain(a.url).localeCompare(extractDomain(b.url)) || a.index - b.index);
+    const sortedIds = movable.map(t => t.id);
+    if (sortedIds.length > 0) {
+      await chrome.tabs.move(sortedIds, { index: firstUnpinnedIndex });
+    }
+    allTabs = await chrome.tabs.query({ currentWindow: true });
+    applyFilterSortAndRender();
+    statusDiv.textContent = '✅ Tabs sorted by domain.';
+    statusDiv.classList.add('success');
+    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+  }
+
+  async function groupTabsByDomain() {
+    await saveTabState();
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+    const groupable = tabs.filter(t => !t.pinned && !isSystemUrl(t.url));
+
+    const domainMap = new Map();
+    for (const tab of groupable) {
+      const domain = extractDomain(tab.url);
+      if (!domainMap.has(domain)) domainMap.set(domain, []);
+      domainMap.get(domain).push(tab.id);
+    }
+
+    for (const [domain, tabIds] of domainMap) {
+      try {
+        if (tabIds.length >= 2) {
+          const groupId = await chrome.tabs.group({ tabIds });
+          await chrome.tabGroups.update(groupId, { title: domain });
+        } else {
+          await chrome.tabs.ungroup(tabIds);
+        }
+      } catch (e) { console.warn(`Could not group domain "${domain}":`, e); }
+    }
+
+    allTabs = await chrome.tabs.query({ currentWindow: true });
+    applyFilterSortAndRender();
+    statusDiv.textContent = '✅ Tabs grouped by domain.';
+    statusDiv.classList.add('success');
+    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+  }
+
+  sortByDomainBtn.addEventListener('click', sortTabsByDomain);
+  groupByDomainBtn.addEventListener('click', groupTabsByDomain);
+  restoreTabsBtn.addEventListener('click', restoreTabState);
   filterInput.addEventListener('input', () => applyFilterSortAndRender());
   sortSelect.addEventListener('change', () => applyFilterSortAndRender());
   hideDuplicatesCheckbox.addEventListener('change', () => applyFilterSortAndRender());

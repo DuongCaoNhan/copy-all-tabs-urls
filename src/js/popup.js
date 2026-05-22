@@ -28,6 +28,16 @@ document.addEventListener('DOMContentLoaded', async function() {
   const sleepInactiveBtn = document.getElementById('sleep-inactive-btn');
   const sleepSelectedBtn = document.getElementById('sleep-selected-btn');
   const restoreTabsBtn = document.getElementById('restore-tabs-btn');
+  // Session Manager (Phase 3)
+  const saveSessionBtn = document.getElementById('save-session-btn');
+  const manageSessionsBtn = document.getElementById('manage-sessions-btn');
+  const sessionsModal = document.getElementById('sessions-modal');
+  const sessionsListDiv = document.getElementById('sessions-list');
+  const closeSessionsModalBtn = document.getElementById('close-sessions-modal-btn');
+  const closeSessionsBtn = document.getElementById('close-sessions-btn');
+
+  const UC_SESSIONS_KEY = 'uc_sessions';
+  // TODO: consider capping at 20 sessions to avoid unbounded storage growth.
 
   filterInput.focus();
 
@@ -182,17 +192,47 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   // Copy button functionality
   copyButton.addEventListener('click', async () => {
-    const urlsToCopy = getSelectedUrls().join('\n');
+    const selectedUrls = getSelectedUrls();
 
-    if (!urlsToCopy) {
+    if (selectedUrls.length === 0) {
       statusDiv.textContent = '❌ No URLs selected.';
       setTimeout(() => { statusDiv.textContent = ''; }, 3000);
       return;
     }
 
+    const format = exportFormatSelect.value;
+
     try {
-      await navigator.clipboard.writeText(urlsToCopy);
-      statusDiv.textContent = `✅ Copied ${getSelectedUrls().length} URLs!`;
+      if (format === 'html') {
+        // Rich Text copy: write both text/html and text/plain simultaneously so
+        // the OS can paste rich text (hyperlinks) into Word/email and fall back
+        // to plain text in Notepad. ClipboardItem is required for multi-type writes.
+        const selectedTabs = lastRenderedTabs.filter(t => selectedUrls.includes(t.url));
+        const htmlString = selectedTabs
+          .map(t => `<a href="${t.url}">${(t.title || t.url).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</a>`)
+          .join('<br>\n');
+        const plainText = selectedTabs
+          .map(t => `${t.title || t.url}\n${t.url}`)
+          .join('\n\n');
+
+        if (typeof ClipboardItem !== 'undefined') {
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              'text/html':  new Blob([htmlString], { type: 'text/html' }),
+              'text/plain': new Blob([plainText],  { type: 'text/plain' }),
+            }),
+          ]);
+        } else {
+          // Fallback: ClipboardItem not available (older browsers / extension context)
+          await navigator.clipboard.writeText(plainText);
+        }
+
+        statusDiv.textContent = `✅ Copied ${selectedTabs.length} URLs as Rich Text!`;
+      } else {
+        await navigator.clipboard.writeText(selectedUrls.join('\n'));
+        statusDiv.textContent = `✅ Copied ${selectedUrls.length} URLs!`;
+      }
+
       statusDiv.classList.add('success');
       setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
     } catch (error) {
@@ -232,6 +272,14 @@ document.addEventListener('DOMContentLoaded', async function() {
     } else if (format === 'md') {
       content = selectedTabs.map(t => `- [${t.title||t.url}](${t.url})`).join('\n');
       filename += '.md.txt';
+    } else if (format === 'html') {
+      // Rich Text file: a self-contained HTML file with clickable hyperlinks.
+      // Can be opened in any browser or imported into Word/email clients.
+      const links = selectedTabs
+        .map(t => `  <li><a href="${t.url}">${(t.title || t.url).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</a></li>`)
+        .join('\n');
+      content = `<!DOCTYPE html>\n<html>\n<head><meta charset="utf-8"><title>URLCollector Export</title></head>\n<body>\n<ul>\n${links}\n</ul>\n</body>\n</html>`;
+      filename += '.html';
     }
 
     try {
@@ -842,4 +890,208 @@ document.addEventListener('DOMContentLoaded', async function() {
   sleepInactiveBtn.addEventListener('click', sleepInactiveTabs);
   sleepSelectedBtn.addEventListener('click', sleepSelectedTabs);
   restoreTabsBtn.addEventListener('click', restoreTabState);
+
+  // ── Phase 3: Tab Session Manager ───────────────────────────────────────────
+
+  /**
+   * Builds a human-readable timestamp string for session names.
+   * e.g. "Session — May 22 2026, 14:30"
+   */
+  function buildSessionName() {
+    const d = new Date();
+    return `Session \u2014 ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}, ${d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
+  }
+
+  /**
+   * Saves the current set of open tabs (plus their Tab Group metadata) to
+   * chrome.storage.local under the "uc_sessions" key.
+   *
+   * Schema per session:
+   *   { id, name, timestamp, tabs: [{ url, title, groupName, groupColor }] }
+   */
+  async function saveSession() {
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+
+    // Collect unique group IDs so we only call chrome.tabGroups.get() once per group.
+    const groupIds = [...new Set(
+      tabs.map(t => t.groupId).filter(id => id !== TAB_GROUP_ID_NONE && id >= 0)
+    )];
+
+    // Build a Map<groupId, { title, color }> for fast lookup below.
+    const groupMeta = new Map();
+    for (const groupId of groupIds) {
+      try {
+        const { title, color } = await chrome.tabGroups.get(groupId);
+        groupMeta.set(groupId, { title: title || '', color: color || 'grey' });
+      } catch (err) {
+        console.warn(`[Session] Could not fetch group ${groupId}:`, err.message);
+      }
+    }
+
+    const sessionTabs = tabs.map(t => {
+      const meta = groupMeta.get(t.groupId);
+      return {
+        url:        t.url,
+        title:      t.title || t.url,
+        groupName:  meta ? meta.title  : null,
+        groupColor: meta ? meta.color  : null,
+      };
+    });
+
+    const newSession = {
+      id:        `uc_${Date.now()}`,
+      name:      buildSessionName(),
+      timestamp: Date.now(),
+      tabs:      sessionTabs,
+    };
+
+    const result = await chrome.storage.local.get(UC_SESSIONS_KEY);
+    const existing = Array.isArray(result[UC_SESSIONS_KEY]) ? result[UC_SESSIONS_KEY] : [];
+    await chrome.storage.local.set({ [UC_SESSIONS_KEY]: [newSession, ...existing] });
+
+    statusDiv.textContent = `\u2705 Session saved (${sessionTabs.length} tabs).`;
+    statusDiv.classList.add('success');
+    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+  }
+
+  /**
+   * Restores a saved session by opening each saved URL as a new tab in the
+   * current window, then re-grouping them to match the original Tab Groups.
+   *
+   * Grouping strategy:
+   *   - Collect newly created tabs by their original groupName.
+   *   - Call chrome.tabs.group() once per group name, then
+   *     chrome.tabGroups.update() to set title + color.
+   */
+  async function restoreSession(session) {
+    sessionsModal.classList.add('hidden');
+
+    // Map<groupName, tabId[]> to batch-create groups after all tabs open.
+    const groupNameToTabIds = new Map();
+    const createdTabIds = [];
+
+    for (const savedTab of session.tabs) {
+      try {
+        const newTab = await chrome.tabs.create({ url: savedTab.url, active: false });
+        createdTabIds.push(newTab.id);
+        if (savedTab.groupName) {
+          if (!groupNameToTabIds.has(savedTab.groupName)) {
+            groupNameToTabIds.set(savedTab.groupName, { tabIds: [], color: savedTab.groupColor || 'grey' });
+          }
+          groupNameToTabIds.get(savedTab.groupName).tabIds.push(newTab.id);
+        }
+      } catch (err) {
+        console.warn(`[Session] Could not open tab ${savedTab.url}:`, err.message);
+      }
+    }
+
+    // Re-create Tab Groups from saved metadata.
+    for (const [groupName, { tabIds, color }] of groupNameToTabIds) {
+      if (tabIds.length === 0) continue;
+      try {
+        const newGroupId = await chrome.tabs.group({ tabIds });
+        await chrome.tabGroups.update(newGroupId, { title: groupName, color });
+      } catch (err) {
+        console.warn(`[Session] Could not recreate group "${groupName}":`, err.message);
+      }
+    }
+
+    allTabs = await chrome.tabs.query({ currentWindow: true });
+    applyFilterSortAndRender();
+    statusDiv.textContent = `\u21a9 Restored \u201c${session.name}\u201d (${createdTabIds.length} tabs).`;
+    statusDiv.classList.add('success');
+    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 4000);
+  }
+
+  /**
+   * Deletes a saved session by ID and re-renders the sessions list.
+   */
+  async function deleteSession(sessionId) {
+    const result = await chrome.storage.local.get(UC_SESSIONS_KEY);
+    const existing = Array.isArray(result[UC_SESSIONS_KEY]) ? result[UC_SESSIONS_KEY] : [];
+    const updated = existing.filter(s => s.id !== sessionId);
+    await chrome.storage.local.set({ [UC_SESSIONS_KEY]: updated });
+    renderSessionsList(updated);
+  }
+
+  /**
+   * Renders the list of saved sessions inside the sessions modal.
+   */
+  function renderSessionsList(sessions) {
+    sessionsListDiv.innerHTML = '';
+
+    if (!sessions || sessions.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'uc-sessions-empty';
+      empty.textContent = 'No saved sessions yet.';
+      sessionsListDiv.appendChild(empty);
+      return;
+    }
+
+    for (const session of sessions) {
+      const item = document.createElement('div');
+      item.className = 'uc-session-item';
+
+      const meta = document.createElement('div');
+      meta.className = 'uc-session-meta';
+
+      const name = document.createElement('span');
+      name.className = 'uc-session-name';
+      name.textContent = session.name;
+      name.title = session.name;
+
+      const detail = document.createElement('span');
+      detail.className = 'uc-session-detail';
+      detail.textContent = `${session.tabs.length} tab${session.tabs.length !== 1 ? 's' : ''}`;
+
+      meta.appendChild(name);
+      meta.appendChild(detail);
+
+      const actions = document.createElement('div');
+      actions.className = 'uc-session-actions';
+
+      const restoreBtn = document.createElement('button');
+      restoreBtn.className = 'uc-btn uc-btn-secondary';
+      restoreBtn.title = 'Open all tabs from this session';
+      restoreBtn.innerHTML = '<span class="material-icons" style="font-size:14px">restore</span>Restore';
+      restoreBtn.addEventListener('click', () => restoreSession(session));
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'uc-btn uc-btn-danger';
+      deleteBtn.title = 'Delete this session';
+      deleteBtn.innerHTML = '<span class="material-icons" style="font-size:14px">delete</span>';
+      deleteBtn.addEventListener('click', () => deleteSession(session.id));
+
+      actions.appendChild(restoreBtn);
+      actions.appendChild(deleteBtn);
+
+      item.appendChild(meta);
+      item.appendChild(actions);
+      sessionsListDiv.appendChild(item);
+    }
+  }
+
+  /**
+   * Opens the sessions modal and loads the current list from storage.
+   */
+  async function openSessionsModal() {
+    const result = await chrome.storage.local.get(UC_SESSIONS_KEY);
+    const sessions = Array.isArray(result[UC_SESSIONS_KEY]) ? result[UC_SESSIONS_KEY] : [];
+    renderSessionsList(sessions);
+    sessionsModal.classList.remove('hidden');
+  }
+
+  function closeSessionsModal() {
+    sessionsModal.classList.add('hidden');
+  }
+
+  // Wire Session Manager event listeners.
+  saveSessionBtn.addEventListener('click', saveSession);
+  manageSessionsBtn.addEventListener('click', openSessionsModal);
+  closeSessionsModalBtn.addEventListener('click', closeSessionsModal);
+  closeSessionsBtn.addEventListener('click', closeSessionsModal);
+  // Close sessions modal when clicking the backdrop.
+  sessionsModal.addEventListener('click', (e) => {
+    if (e.target === sessionsModal) closeSessionsModal();
+  });
 });

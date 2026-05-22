@@ -83,6 +83,12 @@
         <button id="sleep-inactive-btn" class="uc-btn uc-btn-danger" title="Discard all inactive tabs to free RAM"><span class="material-icons">bedtime</span>Sleep Inactive</button>
         <button id="restore-tabs-btn" class="uc-btn uc-btn-secondary uc-btn-icon" title="Undo last sort or group" disabled><span class="material-icons">restore</span></button>
       </div>
+
+      <!-- Session Manager row -->
+      <div class="uc-mgmt-row">
+        <button id="save-session-btn" class="uc-btn uc-btn-secondary" title="Save current tabs as a named session"><span class="material-icons">bookmark_add</span>Save Session</button>
+        <button id="manage-sessions-btn" class="uc-btn uc-btn-secondary" title="View and restore saved sessions"><span class="material-icons">bookmarks</span>Sessions</button>
+      </div>
     </section>
 
     <!-- ── Export & Destructive row ───────────────────── -->
@@ -91,10 +97,25 @@
         <option value="txt" selected>.txt</option>
         <option value="csv">.csv</option>
         <option value="md">.md</option>
+        <option value="html">Rich Text (Word/Email)</option>
       </select>
       <button id="saveButton" class="uc-btn uc-btn-secondary" title="Save selected URLs to file"><span class="material-icons">save</span>Save</button>
       <button id="sleep-selected-btn" class="uc-btn uc-btn-danger" title="Discard selected tabs to free RAM"><span class="material-icons">bedtime</span>Sleep Sel.</button>
       <button id="clear-duplicate-btn" class="uc-btn uc-btn-danger" title="Close duplicate tabs"><span class="material-icons">delete_sweep</span>Clear Dups</button>
+    </div>
+
+    <!-- ── Sessions modal ────────────────────────────── -->
+    <div id="sessions-modal" class="uc-modal-backdrop hidden">
+      <div class="uc-modal">
+        <div class="uc-modal-header">
+          <span class="uc-modal-title">Saved Sessions</span>
+          <button id="close-sessions-modal-btn" class="uc-icon-btn" title="Close"><span class="material-icons">close</span></button>
+        </div>
+        <div id="sessions-list" class="uc-modal-body uc-sessions-list"></div>
+        <div class="uc-modal-actions">
+          <button id="close-sessions-btn" class="uc-btn uc-btn-secondary">Close</button>
+        </div>
+      </div>
     </div>
 
     <!-- ── Duplicate confirm modal ───────────────────── -->

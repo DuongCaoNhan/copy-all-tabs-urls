@@ -604,7 +604,76 @@ html, body {
   justify-content: flex-end;
 }
 
-/* ── 16. Status bar ─────────────────────────────────── */
+/* ── 16. Sessions modal extras ──────────────────────── */
+.uc-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.uc-modal-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.uc-sessions-list {
+  max-height: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.uc-session-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-2);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.uc-session-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.uc-session-name {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.uc-session-detail {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.uc-session-actions {
+  display: flex;
+  gap: var(--sp-1);
+  flex-shrink: 0;
+}
+
+.uc-sessions-empty {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--sp-4) 0;
+}
+
+/* ── 17. Status bar ─────────────────────────────────── */
 .uc-status {
   font-size: var(--text-xs);
   color: var(--text-muted);

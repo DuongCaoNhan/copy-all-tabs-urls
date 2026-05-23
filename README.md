@@ -6,7 +6,7 @@ A Chrome extension for collecting, filtering, sorting, grouping, and exporting U
 
 ### URL Collection & Export
 - **Copy to clipboard** — copy selected URLs in one click
-- **Export formats** — save as `.txt`, `.csv`, or `.md`
+- **Export formats** — save as `.txt`, `.csv`, `.md`, or **Rich Text** (HTML for Word/email with clickable hyperlinks)
 - **Selective copy** — check/uncheck individual tabs or use Select All
 
 ### Filtering & Sorting
@@ -22,6 +22,10 @@ A Chrome extension for collecting, filtering, sorting, grouping, and exporting U
 - **Toggle Groups** — collapse or expand all Tab Groups at once
 - **Restore** — undo the last sort or group operation
 
+### Session Manager
+- **Save Session** — save the current set of open tabs as a named session
+- **Manage Sessions** — view, restore, and delete saved sessions
+
 ### RAM Management
 - **Sleep Inactive** — discard all inactive tabs to free memory
 - **Sleep Selected** — discard only the checked tabs
@@ -33,6 +37,16 @@ A Chrome extension for collecting, filtering, sorting, grouping, and exporting U
 - **Dark / Light theme** — system-aware with manual toggle; persists across sessions
 - **Apple HIG–inspired design** — clean color palette, 8–12 px radius, soft shadows
 - **Material Icons** throughout the interface
+- **Keyboard shortcuts tooltip** — click the keyboard icon in the header to see all available shortcuts
+
+## Keyboard Shortcuts
+
+| Scope | Shortcut | Action |
+|---|---|---|
+| Global | `Ctrl+Shift+C` | Copy all URLs |
+| Global | `Alt+S` | Sleep inactive tabs |
+| In popup | `Enter` (filter focused) | Copy selected URLs |
+| In popup | `Ctrl+S` | Save / export URLs |
 
 ## Usage
 
@@ -40,6 +54,7 @@ A Chrome extension for collecting, filtering, sorting, grouping, and exporting U
 2. Optionally filter, sort, or select specific tabs
 3. Click **Copy Selected URLs** to copy to clipboard, or use **Save** to export to a file
 4. Use the Tab Management section to organise tabs directly in the browser
+5. Use **Save Session** to bookmark the current tab set for later restoration
 
 ## Installation
 
@@ -59,6 +74,7 @@ A Chrome extension for collecting, filtering, sorting, grouping, and exporting U
 ```
 copy-all-tabs-urls/
 ├── manifest.json               # Extension manifest (MV3)
+├── background.js               # Service worker (keyboard command handler)
 └── src/
     ├── popup/
     │   └── popup.html          # Popup entry point
@@ -67,13 +83,9 @@ copy-all-tabs-urls/
     │   └── theme/
     │       ├── theme.js        # Theme token definitions
     │       ├── theme-init.js   # Theme initialisation
-    │       └── direct-theme-toggle.js  # Theme toggle handler
-    ├── styles/
-    │   ├── popup.css           # Main stylesheet & design tokens
-    │   └── components/
-    │       └── theme-styles.css
-    └── assets/
-        └── icons/
+    │       └── direct-theme-toggle.js  # Theme toggle handler (anti-FOUC)
+    └── styles/
+        └── popup.css           # Main stylesheet & design tokens
 ```
 
 ## Technical Details
@@ -81,11 +93,11 @@ copy-all-tabs-urls/
 | Item | Detail |
 |---|---|
 | Manifest Version | 3 |
-| Permissions | `tabs`, `storage`, `tabGroups` |
+| Permissions | `tabs`, `storage`, `tabGroups`, `scripting`, `activeTab` |
 | APIs | Chrome Tabs API, Tab Groups API, Clipboard API, Storage API |
 | Browser Support | Chrome 88+, Edge, and other Chromium-based browsers |
-| Font | Inter (Google Fonts) + Material Icons |
-| CSP | `script-src 'self'`; Google Fonts allowed for styles/fonts |
+| Fonts | System font stack (`-apple-system`, `system-ui`) + Material Icons |
+| CSP | `script-src 'self'`; Material Icons loaded from Google Fonts |
 
 ## Development
 

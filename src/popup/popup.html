@@ -11,9 +11,8 @@
   <!-- Material Icons: display=swap makes it non-render-blocking; icons use text fallback until loaded -->
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../styles/popup.css">
-  <!-- direct-theme-toggle runs synchronously to prevent flash-of-unstyled-content; file is local so negligible cost -->
+  <!-- direct-theme-toggle runs synchronously (before DOMContentLoaded) to prevent FOUC -->
   <script src="../js/theme/direct-theme-toggle.js"></script>
-  <script type="module" src="../js/theme/theme-init.js"></script>
 </head>
 <body>
   <div class="uc-container">

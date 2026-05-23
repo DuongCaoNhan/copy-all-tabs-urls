@@ -41,6 +41,19 @@ document.addEventListener('DOMContentLoaded', async function() {
 
   filterInput.focus();
 
+  // Clears any pending status timer before showing the new message.
+  // Fixes a race condition where two rapid actions leave stale timers.
+  let _statusTimeout = null;
+  const showStatus = (msg, isSuccess = false, duration = 3000) => {
+    clearTimeout(_statusTimeout);
+    statusDiv.textContent = msg;
+    statusDiv.classList.toggle('success', isSuccess);
+    _statusTimeout = setTimeout(() => {
+      statusDiv.textContent = '';
+      statusDiv.classList.remove('success');
+    }, duration);
+  };
+
   let allTabs = [];
   let lastRenderedTabs = [];
   const TAB_MANAGER_STATE_KEY = 'tabManagerState';
@@ -101,9 +114,10 @@ document.addEventListener('DOMContentLoaded', async function() {
   };
 
   const updateCounts = () => {
-    const total = urlListContainer.querySelectorAll('.url-item input[type="checkbox"]').length;
-    const selected = urlListContainer.querySelectorAll('.url-item input[type="checkbox"]:checked').length;
-    countTotalSpan.textContent = total.toString();
+    const boxes = urlListContainer.querySelectorAll('.url-item input[type="checkbox"]');
+    let selected = 0;
+    for (const cb of boxes) { if (cb.checked) selected++; }
+    countTotalSpan.textContent = boxes.length.toString();
     countSelectedSpan.textContent = selected.toString();
   };
 
@@ -195,8 +209,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const selectedUrls = getSelectedUrls();
 
     if (selectedUrls.length === 0) {
-      statusDiv.textContent = '❌ No URLs selected.';
-      setTimeout(() => { statusDiv.textContent = ''; }, 3000);
+      showStatus('❌ No URLs selected.');
       return;
     }
 
@@ -227,18 +240,14 @@ document.addEventListener('DOMContentLoaded', async function() {
           await navigator.clipboard.writeText(plainText);
         }
 
-        statusDiv.textContent = `✅ Copied ${selectedTabs.length} URLs as Rich Text!`;
+        showStatus(`✅ Copied ${selectedTabs.length} URLs as Rich Text!`, true);
       } else {
         await navigator.clipboard.writeText(selectedUrls.join('\n'));
-        statusDiv.textContent = `✅ Copied ${selectedUrls.length} URLs!`;
+        showStatus(`✅ Copied ${selectedUrls.length} URLs!`, true);
       }
-
-      statusDiv.classList.add('success');
-      setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
     } catch (error) {
       console.error('Error copying URLs:', error);
-      statusDiv.textContent = '❌ Failed to copy URLs';
-      setTimeout(() => { statusDiv.textContent = ''; }, 3000);
+      showStatus('❌ Failed to copy URLs');
     }
   });
 
@@ -252,8 +261,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   saveButton.addEventListener('click', () => {
     const selectedUrls = getSelectedUrls();
     if (selectedUrls.length === 0) {
-      statusDiv.textContent = '❌ No URLs selected.';
-      setTimeout(() => { statusDiv.textContent = ''; }, 3000);
+      showStatus('❌ No URLs selected.');
       return;
     }
 
@@ -291,13 +299,10 @@ document.addEventListener('DOMContentLoaded', async function() {
       document.body.appendChild(a);
       a.click();
       setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 0);
-      statusDiv.textContent = `💾 Saved ${selectedTabs.length} URLs (${format}).`;
-      statusDiv.classList.add('success');
-      setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+      showStatus(`💾 Saved ${selectedTabs.length} URLs (${format}).`, true);
     } catch (err) {
       console.error('Save failed', err);
-      statusDiv.textContent = '❌ Failed to save file';
-      setTimeout(() => { statusDiv.textContent = ''; }, 3000);
+      showStatus('❌ Failed to save file');
     }
   });
 
@@ -319,9 +324,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   clearDuplicateBtn.addEventListener('click', () => {
     const dups = getDuplicateTabs();
     if (dups.length === 0) {
-      statusDiv.textContent = '✅ No duplicate tabs.';
-      statusDiv.classList.add('success');
-      setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 2000);
+      showStatus('✅ No duplicate tabs.', true, 2000);
       return;
     }
     // Hiển thị danh sách tab duplicate
@@ -341,16 +344,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     try {
       await chrome.tabs.remove(dups.map(t => t.id));
-      statusDiv.textContent = `🗑️ Closed ${dups.length} duplicate tabs.`;
-      statusDiv.classList.add('success');
-      setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 2000);
+      showStatus(`🗑️ Closed ${dups.length} duplicate tabs.`, true, 2000);
       duplicateConfirm.classList.add('hidden');
       // Reload tab list
       allTabs = await chrome.tabs.query({ currentWindow: true });
       applyFilterSortAndRender();
     } catch (e) {
-      statusDiv.textContent = '❌ Failed to close tabs.';
-      setTimeout(() => { statusDiv.textContent = ''; }, 2000);
+      showStatus('❌ Failed to close tabs.', false, 2000);
       duplicateConfirm.classList.add('hidden');
     }
   });
@@ -492,9 +492,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     allTabs = await chrome.tabs.query({ currentWindow: true });
     applyFilterSortAndRender();
 
-    statusDiv.textContent = '↩ Tabs restored.';
-    statusDiv.classList.add('success');
-    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+    showStatus('↩ Tabs restored.', true);
   }
 
   /**
@@ -561,13 +559,10 @@ document.addEventListener('DOMContentLoaded', async function() {
 
       allTabs = await chrome.tabs.query({ currentWindow: true });
       applyFilterSortAndRender();
-      statusDiv.textContent = `✅ Sorted ${free.length} ungrouped tab${free.length !== 1 ? 's' : ''} by domain.`;
-      statusDiv.classList.add('success');
-      setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+      showStatus(`✅ Sorted ${free.length} ungrouped tab${free.length !== 1 ? 's' : ''} by domain.`, true);
     } catch (err) {
       console.error('sortTabsByDomain failed:', err);
-      statusDiv.textContent = '❌ Sort failed.';
-      setTimeout(() => { statusDiv.textContent = ''; }, 2000);
+      showStatus('❌ Sort failed.', false, 2000);
     }
   }
 
@@ -622,9 +617,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     allTabs = await chrome.tabs.query({ currentWindow: true });
     applyFilterSortAndRender();
 
-    statusDiv.textContent = `✅ Grouped tabs by domain.`;
-    statusDiv.classList.add('success');
-    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+    showStatus('✅ Grouped tabs by domain.', true);
   }
 
   // Init: enable Restore button if a saved state already exists.
@@ -657,25 +650,21 @@ document.addEventListener('DOMContentLoaded', async function() {
     await saveTabState();
     const groups = await chrome.tabGroups.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
     if (groups.length === 0) {
-      statusDiv.textContent = 'No tab groups to sort.';
-      setTimeout(() => { statusDiv.textContent = ''; }, 2000);
+      showStatus('No tab groups to sort.', false, 2000);
       return;
     }
     // Delegate to the shared helper which does the actual moves.
     await _doSortGroups();
     allTabs = await chrome.tabs.query({ currentWindow: true });
     applyFilterSortAndRender();
-    statusDiv.textContent = `✅ Sorted ${groups.length} tab group${groups.length !== 1 ? 's' : ''} A→Z.`;
-    statusDiv.classList.add('success');
-    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+    showStatus(`✅ Sorted ${groups.length} tab group${groups.length !== 1 ? 's' : ''} A→Z.`, true);
   }
 
   async function toggleAllGroups() {
     try {
       const groups = await chrome.tabGroups.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
       if (groups.length === 0) {
-        statusDiv.textContent = 'No tab groups found.';
-        setTimeout(() => { statusDiv.textContent = ''; }, 2000);
+        showStatus('No tab groups found.', false, 2000);
         return;
       }
       const anyExpanded = groups.some(g => !g.collapsed);
@@ -687,13 +676,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
       }
       toggleGroupsBtn.innerHTML = anyExpanded ? '<span class="material-icons">expand_less</span>Toggle Groups' : '<span class="material-icons">expand_more</span>Toggle Groups';
-      statusDiv.textContent = anyExpanded ? '▶ All groups collapsed.' : '▼ All groups expanded.';
-      statusDiv.classList.add('success');
-      setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 2000);
+      showStatus(anyExpanded ? '▶ All groups collapsed.' : '▼ All groups expanded.', true, 2000);
     } catch (err) {
       console.error('toggleAllGroups failed:', err);
-      statusDiv.textContent = '❌ Could not toggle groups.';
-      setTimeout(() => { statusDiv.textContent = ''; }, 2000);
+      showStatus('❌ Could not toggle groups.', false, 2000);
     }
   }
 
@@ -749,13 +735,10 @@ document.addEventListener('DOMContentLoaded', async function() {
 
       allTabs = await chrome.tabs.query({ currentWindow: true });
       applyFilterSortAndRender();
-      statusDiv.textContent = `✅ Sorted ${free.length} ungrouped tab${free.length !== 1 ? 's' : ''} by tab count.`;
-      statusDiv.classList.add('success');
-      setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+      showStatus(`✅ Sorted ${free.length} ungrouped tab${free.length !== 1 ? 's' : ''} by tab count.`, true);
     } catch (err) {
       console.error('sortTabsByTabCount failed:', err);
-      statusDiv.textContent = '❌ Sort failed.';
-      setTimeout(() => { statusDiv.textContent = ''; }, 2000);
+      showStatus('❌ Sort failed.', false, 2000);
     }
   }
 
@@ -817,9 +800,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     allTabs = await chrome.tabs.query({ currentWindow: true });
     applyFilterSortAndRender();
-    statusDiv.textContent = '✅ Grouped tabs by subdomain.';
-    statusDiv.classList.add('success');
-    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+    showStatus('✅ Grouped tabs by subdomain.', true);
   }
 
   /**
@@ -832,8 +813,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       !t.active && !t.audible && !t.discarded && t.status !== 'loading' && !t.pinned
     );
     if (candidates.length === 0) {
-      statusDiv.textContent = 'No inactive tabs to sleep.';
-      setTimeout(() => { statusDiv.textContent = ''; }, 2000);
+      showStatus('No inactive tabs to sleep.', false, 2000);
       return;
     }
     let count = 0;
@@ -847,9 +827,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     allTabs = await chrome.tabs.query({ currentWindow: true });
     applyFilterSortAndRender();
-    statusDiv.textContent = `💤 Slept ${count} inactive tab${count !== 1 ? 's' : ''}.`;
-    statusDiv.classList.add('success');
-    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+    showStatus(`💤 Slept ${count} inactive tab${count !== 1 ? 's' : ''}.`, true);
   }
 
   /**
@@ -861,8 +839,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       urlListContainer.querySelectorAll('input[type="checkbox"]:checked')
     );
     if (checkedBoxes.length === 0) {
-      statusDiv.textContent = 'No tabs selected.';
-      setTimeout(() => { statusDiv.textContent = ''; }, 2000);
+      showStatus('No tabs selected.', false, 2000);
       return;
     }
 
@@ -884,9 +861,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     allTabs = await chrome.tabs.query({ currentWindow: true });
     applyFilterSortAndRender();
-    statusDiv.textContent = `💤 Slept ${count} selected tab${count !== 1 ? 's' : ''}.`;
-    statusDiv.classList.add('success');
-    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+    showStatus(`💤 Slept ${count} selected tab${count !== 1 ? 's' : ''}.`, true);
   }
 
   // Wire Tab Management event listeners (Phase 2).
@@ -956,9 +931,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const existing = Array.isArray(result[UC_SESSIONS_KEY]) ? result[UC_SESSIONS_KEY] : [];
     await chrome.storage.local.set({ [UC_SESSIONS_KEY]: [newSession, ...existing] });
 
-    statusDiv.textContent = `\u2705 Session saved (${sessionTabs.length} tabs).`;
-    statusDiv.classList.add('success');
-    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 3000);
+    showStatus(`\u2705 Session saved (${sessionTabs.length} tabs).`, true);
   }
 
   /**
@@ -1005,9 +978,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     allTabs = await chrome.tabs.query({ currentWindow: true });
     applyFilterSortAndRender();
-    statusDiv.textContent = `\u21a9 Restored \u201c${session.name}\u201d (${createdTabIds.length} tabs).`;
-    statusDiv.classList.add('success');
-    setTimeout(() => { statusDiv.textContent = ''; statusDiv.classList.remove('success'); }, 4000);
+    showStatus(`\u21a9 Restored \u201c${session.name}\u201d (${createdTabIds.length} tabs).`, true, 4000);
   }
 
   /**

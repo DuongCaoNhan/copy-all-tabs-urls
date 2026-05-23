@@ -108,7 +108,7 @@
   padding: 0;
 }
 
-html, body {
+body {
   width: 420px;
   margin: 0;
   box-sizing: border-box;
@@ -172,8 +172,8 @@ html, body {
 
 /* ── 6. Form elements base ──────────────────────────── */
 .uc-select {
-  appearance: none;
   -webkit-appearance: none;
+  appearance: none;
   background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -225,13 +225,14 @@ html, body {
   font-size: var(--text-xs);
   color: var(--text-secondary);
   cursor: pointer;
+  -webkit-user-select: none;
   user-select: none;
   white-space: nowrap;
 }
 
 .uc-toggle-label input[type="checkbox"] {
-  appearance: none;
   -webkit-appearance: none;
+  appearance: none;
   width: 13px;
   height: 13px;
   border: 1px solid var(--border);
@@ -289,6 +290,7 @@ html, body {
   line-height: 1;
   display: inline-flex;
   align-items: center;
+  -webkit-user-select: none;
   user-select: none;
   flex-shrink: 0;
   color: inherit;
@@ -328,12 +330,13 @@ html, body {
   font-size: var(--text-sm);
   color: var(--text-secondary);
   cursor: pointer;
+  -webkit-user-select: none;
   user-select: none;
 }
 
 .uc-checkbox-label input[type="checkbox"] {
-  appearance: none;
   -webkit-appearance: none;
+  appearance: none;
   width: 14px;
   height: 14px;
   border: 1px solid var(--border);
@@ -396,8 +399,8 @@ html, body {
 .url-item:hover { background: var(--bg-hover); }
 
 .url-item input[type="checkbox"] {
-  appearance: none;
   -webkit-appearance: none;
+  appearance: none;
   width: 13px;
   height: 13px;
   border: 1px solid var(--border);
@@ -562,6 +565,7 @@ html, body {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.55);
+  -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
@@ -671,6 +675,87 @@ html, body {
   color: var(--text-muted);
   text-align: center;
   padding: var(--sp-4) 0;
+}
+
+/* Small icon size used in dynamically-created buttons (avoids inline styles). */
+.uc-icon-sm { font-size: 14px; }
+
+/* ── 18. Shortcuts tooltip ─────────────────────────── */
+.uc-shortcuts-wrapper {
+  position: relative;
+}
+
+#shortcuts-btn .material-icons {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.uc-shortcuts-tooltip {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 200;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: var(--sp-3);
+  min-width: 270px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.uc-shortcuts-tooltip[hidden] {
+  display: none;
+}
+
+.uc-shortcuts-heading {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--sp-1);
+}
+
+.uc-shortcuts-section {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-top: var(--sp-1);
+}
+
+.uc-shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.uc-shortcut-keys {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 5px;
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 1px 0 var(--border);
+  white-space: nowrap;
 }
 
 /* ── 17. Status bar ─────────────────────────────────── */

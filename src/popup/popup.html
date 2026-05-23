@@ -1,10 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>URLCollector</title>
+  <!-- Preconnect to warm up Google Fonts connections before the browser parses the link tags -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Inter font removed: CSS already falls back to -apple-system / system-ui (zero network cost) -->
+  <!-- Material Icons: display=swap makes it non-render-blocking; icons use text fallback until loaded -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../styles/popup.css">
+  <!-- direct-theme-toggle runs synchronously to prevent flash-of-unstyled-content; file is local so negligible cost -->
   <script src="../js/theme/direct-theme-toggle.js"></script>
   <script type="module" src="../js/theme/theme-init.js"></script>
 </head>
@@ -33,6 +40,20 @@
         <label class="uc-toggle-label" title="Skip system/internal tabs">
           <input type="checkbox" id="skip-system" checked> Sys-
         </label>
+        <div class="uc-shortcuts-wrapper" id="shortcuts-wrapper">
+          <button class="uc-icon-btn" id="shortcuts-btn" title="Keyboard shortcuts">
+            <span class="material-icons">keyboard</span>
+          </button>
+          <div class="uc-shortcuts-tooltip" id="shortcuts-tooltip" hidden>
+            <p class="uc-shortcuts-heading">Keyboard Shortcuts</p>
+            <span class="uc-shortcuts-section">Global</span>
+            <div class="uc-shortcut-row"><span class="uc-shortcut-keys"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>C</kbd></span><span>Copy all URLs</span></div>
+            <div class="uc-shortcut-row"><span class="uc-shortcut-keys"><kbd>Alt</kbd>+<kbd>S</kbd></span><span>Sleep inactive tabs</span></div>
+            <span class="uc-shortcuts-section">In popup</span>
+            <div class="uc-shortcut-row"><span class="uc-shortcut-keys"><kbd>Enter</kbd></span><span>Copy selected (filter focused)</span></div>
+            <div class="uc-shortcut-row"><span class="uc-shortcut-keys"><kbd>Ctrl</kbd>+<kbd>S</kbd></span><span>Save / export URLs</span></div>
+          </div>
+        </div>
         <button id="theme-toggle-btn" class="uc-icon-btn" title="Switch theme"><span class="material-icons">dark_mode</span></button>
       </div>
     </header>
@@ -93,7 +114,7 @@
 
     <!-- ── Export & Destructive row ───────────────────── -->
     <div class="uc-actions-row">
-      <select id="export-format" class="uc-select">
+      <select id="export-format" class="uc-select" title="Export format">
         <option value="txt" selected>.txt</option>
         <option value="csv">.csv</option>
         <option value="md">.md</option>

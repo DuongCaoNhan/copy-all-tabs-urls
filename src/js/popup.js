@@ -355,6 +355,17 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
   });
 
+  // Shortcuts tooltip toggle
+  const shortcutsBtn = document.getElementById('shortcuts-btn');
+  const shortcutsTooltip = document.getElementById('shortcuts-tooltip');
+  shortcutsBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    shortcutsTooltip.hidden = !shortcutsTooltip.hidden;
+  });
+  document.addEventListener('click', () => {
+    if (shortcutsTooltip && !shortcutsTooltip.hidden) shortcutsTooltip.hidden = true;
+  });
+
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && document.activeElement === filterInput) {
@@ -859,19 +870,15 @@ document.addEventListener('DOMContentLoaded', async function() {
       .map(cb => parseInt(cb.dataset.tabId, 10))
       .filter(id => !isNaN(id));
 
-    const tabs = await chrome.tabs.query({ currentWindow: true });
-    const tabMap = new Map(tabs.map(t => [t.id, t]));
-
     let count = 0;
     for (const id of selectedIds) {
-      const tab = tabMap.get(id);
-      if (!tab) continue;
-      if (tab.active || tab.audible || tab.discarded || tab.status === 'loading' || tab.pinned) continue;
       try {
+        const tab = await chrome.tabs.get(id);
+        if (tab.active || tab.audible || tab.discarded || tab.status === 'loading' || tab.pinned) continue;
         await chrome.tabs.discard(id);
         count++;
-      } catch (err) {
-        console.warn(`Could not discard tab ${id}:`, err.message);
+      } catch {
+        // Tab no longer exists or cannot be discarded — skip silently
       }
     }
 
@@ -1053,13 +1060,13 @@ document.addEventListener('DOMContentLoaded', async function() {
       const restoreBtn = document.createElement('button');
       restoreBtn.className = 'uc-btn uc-btn-secondary';
       restoreBtn.title = 'Open all tabs from this session';
-      restoreBtn.innerHTML = '<span class="material-icons" style="font-size:14px">restore</span>Restore';
+      restoreBtn.innerHTML = '<span class="material-icons uc-icon-sm">restore</span>Restore';
       restoreBtn.addEventListener('click', () => restoreSession(session));
 
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'uc-btn uc-btn-danger';
       deleteBtn.title = 'Delete this session';
-      deleteBtn.innerHTML = '<span class="material-icons" style="font-size:14px">delete</span>';
+      deleteBtn.innerHTML = '<span class="material-icons uc-icon-sm">delete</span>';
       deleteBtn.addEventListener('click', () => deleteSession(session.id));
 
       actions.appendChild(restoreBtn);
